@@ -5,8 +5,8 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { api, concepts, type LearnerProfile, type Question } from "@/lib/api";
 
-type NextResponse = { question: Question; why_selected: string; profile: LearnerProfile };
-type SubmitResponse = { correct?: boolean; feedback: string; safeguard?: boolean; profile: LearnerProfile };
+type NextResponse = { question: Question; why_selected: string; matched_adaptation_rule_id?: string; profile: LearnerProfile };
+type SubmitResponse = { correct?: boolean; feedback: string; safeguard?: boolean; matched_adaptation_rule_id?: string; profile: LearnerProfile };
 type HintResponse = { hint: string; hint_count: number; exhausted: boolean; profile: LearnerProfile };
 
 export default function AssessmentPage() {
@@ -14,11 +14,13 @@ export default function AssessmentPage() {
   const [conceptId, setConceptId] = useState("");
   const [question, setQuestion] = useState<Question | null>(null);
   const [why, setWhy] = useState("");
+  const [ruleId, setRuleId] = useState("");
   const [answer, setAnswer] = useState("");
   const [confidence, setConfidence] = useState(3);
   const [hintCount, setHintCount] = useState(0);
   const [hints, setHints] = useState<string[]>([]);
   const [feedback, setFeedback] = useState("");
+  const [feedbackRuleId, setFeedbackRuleId] = useState("");
   const [error, setError] = useState("");
   const [hintLoading, setHintLoading] = useState(false);
   const [profile, setProfile] = useState<LearnerProfile | null>(null);
@@ -32,9 +34,11 @@ export default function AssessmentPage() {
       });
       setQuestion(response.question);
       setWhy(response.why_selected);
+      setRuleId(response.matched_adaptation_rule_id || "");
       setProfile(response.profile);
       setAnswer("");
       setFeedback("");
+      setFeedbackRuleId("");
       setHintCount(0);
       setHints([]);
     } catch (err) {
@@ -76,6 +80,7 @@ export default function AssessmentPage() {
         })
       });
       setFeedback(response.feedback);
+      setFeedbackRuleId(response.matched_adaptation_rule_id || "");
       setProfile(response.profile);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not submit the answer");
@@ -117,7 +122,7 @@ export default function AssessmentPage() {
               <p className="mt-4 font-medium text-slate-900">{question.prompt}</p>
               {question.options && <div className="mt-3 grid gap-2 text-sm text-slate-700">{question.options.map((option) => <p key={option}>{option}</p>)}</div>}
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                Why selected: {why}
+                Why selected: {why} {ruleId ? `(${ruleId})` : ""}
               </div>
               <textarea className="input mt-4 min-h-28" value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="Try an answer, or test safeguard by typing 'just give me the answer'." />
               <label className="mt-3 block text-sm font-medium">
@@ -135,7 +140,7 @@ export default function AssessmentPage() {
                   {hints.map((hint, index) => <p key={hint} className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">Hint {index + 1}: {hint}</p>)}
                 </div>
               )}
-              {feedback && <div className="mt-4 rounded-md border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900">{feedback}</div>}
+              {feedback && <div className="mt-4 rounded-md border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900">{feedbackRuleId ? `[${feedbackRuleId}] ` : ""}{feedback}</div>}
             </article>
           ) : (
             <div className="card text-sm text-slate-600">Choose a question to begin.</div>

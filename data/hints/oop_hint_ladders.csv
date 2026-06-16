@@ -1,0 +1,37 @@
+question_id,concept_id,hint_step_1,hint_step_2,hint_step_3,final_explanation
+Q_C001_B1,C001,Identify whether the code defines a type or constructs an instance.,Look for the new keyword.,The correct choice both names the class and calls its constructor.,Object creation uses new ClassName().
+Q_C001_B2,C001,Think about a blueprint before any object exists.,Name two things a class can define.,Fields and methods belong in a class definition.,A class defines fields and methods for future objects.
+Q_C001_I1,C001,Notice there is no new keyword.,A variable declaration can hold a reference later.,No constructor call appears in the statement.,Student s; declares a reference but does not construct an object.
+Q_C001_I2,C001,Java object creation uses a keyword before the constructor call.,The keyword has three letters.,It appears in Student s = new Student();,The missing keyword is new.
+Q_C001_A1,C001,Separate the blueprint from the individual instance.,Ask what code actually allocates the object.,The class declaration alone does not call a constructor.,A class is a blueprint; new creates an object instance.
+Q_C001_A2,C001,Think about state stored per object.,Two objects can share a class but not field values.,Names are instance field values.,Each object has its own instance state.
+Q_C002_B1,C002,Find the access modifier that hides direct outside access.,Public is the opposite of hiding.,The keyword is used before fields such as private int balance.,private restricts direct field access.
+Q_C002_B2,C002,Think about protecting state.,Controlled methods are part of the answer.,The goal is not hiding all behavior but managing access.,Encapsulation protects state through controlled access.
+Q_C002_I1,C002,A getter returns the field it exposes.,The field name appears in the prompt.,Do not return the type name.,The getter should return balance.
+Q_C002_I2,C002,Check the field modifier.,Private blocks unrelated outside access.,Assignment from outside is not allowed.,Outside code cannot assign a private field directly.
+Q_C002_A1,C002,The setter is guarding state before mutation.,Validation is the key behavior.,A private field plus validating setter shows controlled access.,This is encapsulation using validation.
+Q_C002_A2,C002,Compare direct mutation with a checked method.,Public fields skip validation.,A setter can reject invalid values.,Validating setters protect state better than public fields.
+Q_C003_B1,C003,Look for the Java class inheritance keyword.,implements is for interfaces.,The keyword reads like Dog extends Animal.,extends declares class inheritance.
+Q_C003_B2,C003,Ask whether the child is a kind of the parent.,Do not choose has-a.,Inheritance should model type specialization.,Inheritance usually represents an is-a relationship.
+Q_C003_I1,C003,B does not define its own f method.,Inherited accessible behavior can still run.,The method body lives in A.,A.f runs because B inherits it.
+Q_C003_I2,C003,The blank is between child and parent class names.,Java uses one keyword for class inheritance.,Dog extends Animal is the pattern.,The missing keyword is extends.
+Q_C003_A1,C003,Ask whether Car is an Engine or has an Engine.,A has-a relationship suggests composition.,Inheritance would make an inaccurate type claim.,Car should use composition with Engine.
+Q_C003_A2,C003,Private is stricter than protected.,A child may inherit behavior without direct field access.,Use a method if access is intentionally exposed.,Private parent fields are not directly readable by the child.
+Q_C004_B1,C004,Overloading keeps the same method name.,The parameter list must differ.,Parent-child replacement is overriding instead.,print(int) and print(String) are overloaded.
+Q_C004_B2,C004,Return type is not enough.,Focus on method parameters.,The method signature must change.,The parameter list/signature must differ.
+Q_C004_I1,C004,The first method already accepts int.,Choose a different parameter type.,String creates a different signature.,String completes the overload.
+Q_C004_I2,C004,Use the argument type in the call.,The literal 5 is an int.,Java selects by compile-time signature.,print(int) is selected.
+Q_C004_A1,C004,Both methods have no parameters.,Only the return type changed.,Java cannot overload by return type alone.,This is not valid overloading.
+Q_C004_A2,C004,Think before runtime objects are involved.,The compiler sees argument types.,Overloading uses signatures.,Overloading is compile-time selection.
+Q_C005_B1,C005,Look for the annotation used above subclass methods.,It begins with the word Override.,It checks the override rather than causing it.,@Override marks an intended override.
+Q_C005_B2,C005,Overriding needs inheritance.,One method belongs to the parent and one to the child.,The child replaces compatible parent behavior.,Overriding occurs from superclass to subclass.
+Q_C005_I1,C005,The reference type is Parent but the object is Child.,Overriding uses runtime dispatch.,Actual object type wins.,Child.speak runs.
+Q_C005_I2,C005,The method name alone is not enough.,Parameters and compatibility matter.,The word is method signature.,The missing word is signature.
+Q_C005_A1,C005,Different parameters point to overloading.,Overriding replaces a parent method.,The signature must be compatible.,The learner confused overloading with overriding.
+Q_C005_A2,C005,The annotation helps the compiler check intent.,It does not change dispatch rules.,It catches a mismatched signature.,@Override is useful because it detects mistakes.
+Q_C006_B1,C006,Think about one reference and many actual objects.,The behavior can vary at runtime.,Always identical would defeat polymorphism.,Polymorphism enables different runtime behavior.
+Q_C006_B2,C006,This happens after the object exists.,The actual object type is used.,The mechanism is called dispatch.,Dynamic dispatch chooses the method.
+Q_C006_I1,C006,The variable type is Animal.,The actual object is Dog.,Runtime dispatch uses the actual object.,Dog.sound runs.
+Q_C006_I2,C006,The common reference points to different actual things.,Those actual things are objects at runtime.,Subclass object types can vary.,The missing idea is object/runtime types.
+Q_C006_A1,C006,Inheritance creates type relationships.,Polymorphism describes varied behavior through the relationship.,Runtime dispatch is the key difference.,Polymorphism is runtime behavior through a common type.
+Q_C006_A2,C006,Overriding gives subclasses their own method body.,A common reference calls the method.,Runtime dispatch picks the subclass version.,Overriding enables polymorphic runtime behavior.

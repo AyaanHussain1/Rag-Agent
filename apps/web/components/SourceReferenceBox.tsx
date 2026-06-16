@@ -14,9 +14,10 @@ export function SourceReferenceBox({ sources }: { sources?: Source[] }) {
           <div key={`${source.chunk_id}-${source.concept_id}`} className="rounded-md bg-white/70 p-3">
             <p>{source.source_title}</p>
             <p className="text-xs text-teal-800">
-              Chunk {source.chunk_id} · Concept {source.concept_id}
-              {source.source_page ? ` · Page ${source.source_page}` : ""}
-              {source.similarity_score ? ` · confidence ${source.similarity_score}` : ""}
+              Chunk {source.chunk_id} - Concept {source.concept_id}
+              {source.source_page ? ` - Section ${source.source_page}` : ""}
+              {source.source_document ? ` - ${source.source_document}` : ""}
+              {source.similarity_score ? ` - confidence ${source.similarity_score}` : ""}
             </p>
           </div>
         ))}

@@ -1,165 +1,199 @@
 from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from . import adaptive, models
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-
-
-QUESTIONS = [
-    ("Q_C001_B", "C001", "Which Java statement creates an object from the Student class?", "Multiple choice", "Basic", ["A. Student s = new Student();", "B. class Student {}", "C. Student = class();", "D. object Student;"], "A", "new Student() creates an instance of the Student class.", "M001"),
-    ("Q_C001_I", "C001", "Short answer: explain the difference between a class and an object.", "Short answer", "Intermediate", None, "class blueprint|object instance", "A class defines structure/behavior; an object is a runtime instance.", "M001"),
-    ("Q_C001_A", "C001", "Bug fixing: complete the missing Java object creation: Student s = ____ Student();", "Bug fixing or fill-in-code", "Advanced", None, "new", "The new keyword allocates an object instance.", "M001"),
-    ("Q_C002_B", "C002", "Which modifier best hides a field from direct outside access in Java?", "Multiple choice", "Basic", ["A. public", "B. private", "C. static", "D. void"], "B", "private restricts direct access to the declaring class.", "M002"),
-    ("Q_C002_I", "C002", "Bug fixing: class Account { private int balance; public int getBalance(){ return ____; } }", "Bug fixing or fill-in-code", "Intermediate", None, "balance", "A getter can expose controlled read access to private state.", "M002"),
-    ("Q_C002_A", "C002", "Short answer: why do getters/setters support encapsulation?", "Short answer", "Advanced", None, "controlled access|validate|private", "They preserve private state while allowing controlled or validated access.", "M002"),
-    ("Q_C003_B", "C003", "Which Java keyword declares that Dog inherits from Animal?", "Multiple choice", "Basic", ["A. implements", "B. inherits", "C. extends", "D. imports"], "C", "extends creates a subclass relationship in Java.", "M003"),
-    ("Q_C003_I", "C003", "Code tracing: class A { void f(){System.out.print(\"A\");}} class B extends A {} new B().f(); What prints?", "Code tracing", "Intermediate", None, "A", "B inherits f() from A when it does not override it.", "M003"),
-    ("Q_C003_A", "C003", "Short answer: when should inheritance not be used?", "Short answer", "Advanced", None, "not is-a|composition|unrelated", "Inheritance is best for true is-a relationships; otherwise composition is safer.", "M003"),
-    ("Q_C004_B", "C004", "Which pair is method overloading?", "Multiple choice", "Basic", ["A. void pay(int x) and void pay(double x)", "B. void pay() in parent and child", "C. private int pay", "D. class Pay extends Bill"], "A", "Overloading uses the same method name with different parameter lists.", "M004"),
-    ("Q_C004_I", "C004", "Fill in code: void print(int x) and void print(____ x) overload print by parameter type.", "Bug fixing or fill-in-code", "Intermediate", None, "String", "Changing parameter type creates a different signature.", "M004"),
-    ("Q_C004_A", "C004", "Short answer: is changing only the return type enough for overloading in Java?", "Short answer", "Advanced", None, "no|parameter", "Java overloading requires different parameter lists, not return type alone.", "M004"),
-    ("Q_C005_B", "C005", "What annotation often marks a Java method that replaces a parent method?", "Multiple choice", "Basic", ["A. @Static", "B. @Override", "C. @Private", "D. @Object"], "B", "@Override marks that a subclass method overrides a superclass method.", "M005"),
-    ("Q_C005_I", "C005", "Code tracing: Parent p = new Child(); p.speak(); Which speak runs if Child overrides speak?", "Code tracing", "Intermediate", None, "Child", "Dynamic dispatch calls the overriding method on the actual object.", "M005"),
-    ("Q_C005_A", "C005", "Bug fixing: to override, the child method must keep the same method name and compatible ____.", "Bug fixing or fill-in-code", "Advanced", None, "signature", "Overriding depends on a matching method signature.", "M005"),
-    ("Q_C006_B", "C006", "Polymorphism lets one reference type point to objects that behave how?", "Multiple choice", "Basic", ["A. Always identically", "B. Differently at runtime", "C. Only as integers", "D. Without methods"], "B", "Polymorphism allows runtime-specific behavior through a common type.", "M006"),
-    ("Q_C006_I", "C006", "Code tracing: Animal a = new Dog(); a.sound(); Dog overrides sound. Which version runs?", "Code tracing", "Intermediate", None, "Dog", "Runtime dispatch uses the actual Dog object.", "M006"),
-    ("Q_C006_A", "C006", "Short answer: how does overriding enable polymorphism?", "Short answer", "Advanced", None, "runtime|subclass|common reference|dynamic", "A common reference can call subclass-specific overriding behavior at runtime.", "M006"),
-]
-
-
-MISCONCEPTIONS = [
-    ("M001", "C001", "Confusing a class definition with an instantiated object", "A class allocates memory before you create anything.", "Clarify that a class is a blueprint; an object is created when Java executes new ClassName()."),
-    ("M002", "C002", "Believing private means data can never be safely exposed", "If a field is private nobody can read it.", "Show how getters expose controlled access while keeping direct field mutation blocked."),
-    ("M003", "C003", "Using inheritance for any code reuse, even without an is-a relationship", "A Car should inherit Engine because it uses one.", "Contrast is-a inheritance with has-a composition before continuing."),
-    ("M004", "C004", "Thinking return type alone overloads a method", "int total() and double total() are overloaded.", "Emphasize that Java method overloading requires a different parameter list."),
-    ("M005", "C005", "Confusing method overriding with method overloading", "Overriding is two methods with different parameters in the same class.", "Contrast overriding as replacing a parent method with overloading as same-name different parameters."),
-    ("M006", "C006", "Thinking polymorphism uses the variable type instead of the object type", "Animal a = new Dog() calls Animal sound.", "Use dynamic dispatch: the actual object type decides the overriding method at runtime."),
-]
+DATA_ROOT = REPO_ROOT / "data"
 
 
 def seed_reference_data(db: Session) -> None:
     for concept in adaptive.CONCEPTS:
         db.merge(models.Concept(**concept))
-
-    for misconception in MISCONCEPTIONS:
-        db.merge(models.Misconception(
-            misconception_id=misconception[0],
-            concept_id=misconception[1],
-            misconception_description=misconception[2],
-            learner_response_example=misconception[3],
-            recommended_intervention=misconception[4],
-        ))
-
-    _load_existing_csv_misconceptions(db, {item[0] for item in MISCONCEPTIONS})
-    _load_content_chunks(db)
-
-    for question_id, concept_id, prompt, qtype, difficulty, options, correct, explanation, misconception_id in QUESTIONS:
-        db.merge(models.Question(
-            question_id=question_id,
-            concept_id=concept_id,
-            prompt=prompt,
-            question_type=qtype,
-            difficulty=difficulty,
-            options=options,
-            correct_answer=correct,
-            explanation=explanation,
-            misconception_id=misconception_id,
-        ))
-        db.merge(models.HintLadder(
-            question_id=question_id,
-            concept_id=concept_id,
-            hint_step_1=_hint(concept_id, 1),
-            hint_step_2=_hint(concept_id, 2),
-            hint_step_3=_hint(concept_id, 3),
-        ))
+    _load_chunks(db)
+    _load_misconceptions(db)
+    _load_questions(db)
+    _load_hint_ladders(db)
+    _load_adaptation_rules(db)
     db.commit()
 
 
 def seed_demo(db: Session) -> dict:
     seed_reference_data(db)
-    for learner_id in ["demo_beginner", "demo_advanced"]:
+    learner_rows = _read_csv(DATA_ROOT / "learners" / "learner_profiles.csv")
+    interaction_rows = _read_csv(DATA_ROOT / "interactions" / "demo_interactions.csv")
+    learner_ids = [str(row["learner_id"]) for _, row in learner_rows.iterrows()]
+
+    db.execute(delete(models.EducatorAlert).where(models.EducatorAlert.learner_id.in_(learner_ids)))
+    db.execute(delete(models.AssessmentAttempt).where(models.AssessmentAttempt.learner_id.in_(learner_ids)))
+    db.execute(delete(models.AIUsageLog).where(models.AIUsageLog.learner_id.in_(learner_ids)))
+    db.execute(delete(models.AIUsageLog).where(models.AIUsageLog.endpoint.like("/seed/%")))
+    db.execute(delete(models.AIUsageLog).where(models.AIUsageLog.prompt_summary == "Seeded out-of-scope demo: Explain photosynthesis"))
+    for learner_id in learner_ids:
         learner = db.get(models.Learner, learner_id)
         if learner:
             db.delete(learner)
-            db.flush()
-
-    beginner = models.Learner(
-        learner_id="demo_beginner",
-        display_name="Demo Learner A - Beginner",
-        current_level="BEGINNER",
-        is_demo=True,
-    )
-    advanced = models.Learner(
-        learner_id="demo_advanced",
-        display_name="Demo Learner B - Advanced",
-        current_level="ADVANCED",
-        is_demo=True,
-    )
-    db.add_all([beginner, advanced])
     db.flush()
-    adaptive.ensure_mastery_records(db, beginner)
-    adaptive.ensure_mastery_records(db, advanced)
 
-    _set_mastery(db, beginner.learner_id, {"C001": 32, "C002": 28, "C003": 42, "C004": 36, "C005": 30, "C006": 38})
-    _set_mastery(db, advanced.learner_id, {"C001": 88, "C002": 82, "C003": 85, "C004": 78, "C005": 86, "C006": 84})
+    learners: dict[str, models.Learner] = {}
+    for _, row in learner_rows.iterrows():
+        learner = models.Learner(
+            learner_id=str(row["learner_id"]),
+            display_name=str(row["display_name"]),
+            current_level=str(row["current_level"]).upper(),
+            is_demo=_bool(row.get("is_demo", True)),
+        )
+        db.add(learner)
+        db.flush()
+        adaptive.ensure_mastery_records(db, learner)
+        _set_mastery(db, learner.learner_id, {concept["concept_id"]: float(row[concept["concept_id"]]) for concept in adaptive.CONCEPTS})
+        learners[learner.learner_id] = learner
 
-    adaptive.record_interaction(db, beginner, "C005", "assessment", "Q_C005_B", "Different parameters", False, 5, 1, "M005", None, "High-confidence confusion between overloading and overriding.")
-    adaptive.record_interaction(db, beginner, "C005", "assessment", "Q_C005_I", "Parent speak", False, 4, 2, "M005", None, "Repeated misconception: selected parent method despite child override.")
-    adaptive.record_interaction(db, beginner, "C005", "assessment", "Q_C005_A", "different params", False, 4, 1, "M005", None, "Third incorrect overriding attempt creates repeated incorrect evidence.")
-    adaptive.record_interaction(db, beginner, "C002", "assessment", "Q_C002_I", "idk", False, 1, 3, "M002", None, "Low confidence and heavy hints in encapsulation.")
-    adaptive.record_interaction(db, beginner, "C002", "assessment", "Q_C002_B", "A", False, 2, 3, "M002", None, "Excessive hint usage continued.")
-    adaptive.record_interaction(db, beginner, "C002", "assessment", "Q_C002_A", "not sure", False, 2, 1, "M002", None, "Third low-confidence encapsulation response creates a teacher alert.")
-    adaptive.record_interaction(db, advanced, "C006", "assessment", "Q_C006_A", "runtime subclass method through common reference", True, 5, 0, None, None, "Advanced learner correctly explained runtime polymorphism.")
-    adaptive.record_interaction(db, advanced, "C005", "assessment", "Q_C005_A", "signature", True, 5, 0, None, None, "Advanced learner answered overriding signature question unaided.")
+    for _, row in interaction_rows.iterrows():
+        learner = learners[str(row["learner_id"])]
+        correct = _optional_bool(row.get("correct"))
+        confidence = _optional_int(row.get("confidence"))
+        hints_used = int(row.get("hints_used") or 0)
+        question_id = _optional_str(row.get("question_id"))
+        misconception_id = _optional_str(row.get("misconception_id"))
+        feedback = str(row.get("evidence_summary") or "")
+        interaction = adaptive.record_interaction(
+            db,
+            learner,
+            str(row["concept_id"]),
+            str(row["interaction_type"]),
+            question_id,
+            _optional_str(row.get("learner_answer")),
+            correct,
+            confidence,
+            hints_used,
+            misconception_id,
+            _optional_str(row.get("teaching_action")),
+            feedback,
+            {"seed_interaction_id": str(row["interaction_id"])},
+        )
+        if str(row["interaction_type"]) == "assessment" and question_id:
+            db.add(models.AssessmentAttempt(
+                learner_id=learner.learner_id,
+                question_id=question_id,
+                concept_id=str(row["concept_id"]),
+                learner_answer=_optional_str(row.get("learner_answer")) or "",
+                correct=bool(correct),
+                confidence=confidence or 3,
+                hints_used=hints_used,
+                misconception_id=misconception_id,
+                feedback=feedback,
+            ))
+        if str(row["interaction_type"]) in {"teaching", "tutor_confusion", "assessment_safeguard"}:
+            db.add(models.AIUsageLog(
+                learner_id=learner.learner_id,
+                endpoint=f"/seed/{row['interaction_type']}",
+                model_name="deterministic-fallback",
+                prompt_summary=feedback[:300],
+                source_metadata={
+                    "seed_interaction_id": str(row["interaction_id"]),
+                    "interaction_id": interaction.interaction_id,
+                    "safeguard_triggered": str(row["interaction_type"]) == "assessment_safeguard",
+                    "source_grounding_used": str(row["interaction_type"]) != "assessment_safeguard",
+                },
+            ))
+
+    db.add(models.AIUsageLog(
+        learner_id=None,
+        endpoint="/api/rag/answer",
+        model_name="deterministic-fallback",
+        prompt_summary="Seeded out-of-scope demo: Explain photosynthesis",
+        source_metadata={"safeguard_triggered": True, "source_grounding_used": False},
+    ))
+    for learner_id in learner_ids:
+        adaptive.refresh_alerts_for_learner(db, learner_id)
     db.commit()
-    return {"seeded": True, "learners": [beginner.learner_id, advanced.learner_id]}
+    return {
+        "seeded": True,
+        "learners": learner_ids,
+        "questions": db.scalar(select(func.count()).select_from(models.Question)),
+        "interactions": len(interaction_rows),
+        "adaptation_rules": db.scalar(select(func.count()).select_from(models.AdaptationRule)),
+    }
 
 
-def _load_existing_csv_misconceptions(db: Session, skip_ids: set[str]) -> None:
-    path = REPO_ROOT / "Misconception.csv"
-    if not path.exists():
-        return
-    frame = pd.read_csv(path)
-    frame.columns = [col.strip().lower() for col in frame.columns]
+def ensure_seeded(db: Session) -> None:
+    concept_count = db.scalar(select(func.count()).select_from(models.Concept)) or 0
+    question_count = db.scalar(select(func.count()).select_from(models.Question)) or 0
+    hint_count = db.scalar(select(func.count()).select_from(models.HintLadder)) or 0
+    rule_count = db.scalar(select(func.count()).select_from(models.AdaptationRule)) or 0
+    if concept_count < len(adaptive.CONCEPTS) or question_count < 36 or hint_count < 12 or rule_count < 12:
+        seed_reference_data(db)
+
+
+def _load_chunks(db: Session) -> None:
+    frame = _read_csv(DATA_ROOT / "chunks" / "oop_knowledge_chunks.csv")
     for _, row in frame.iterrows():
-        misconception_id = str(row["misconception_id"]).strip()
-        if misconception_id in skip_ids:
-            continue
-        concept_id = str(row.get("concept_id", "")).strip().upper()
-        if concept_id not in {item["concept_id"] for item in adaptive.CONCEPTS}:
-            continue
+        db.merge(models.ContentChunk(
+            chunk_id=str(row["chunk_id"]),
+            concept_id=str(row["concept_id"]).upper(),
+            source_page=str(row["page_or_section"]),
+            source_title=str(row["source_title"]),
+            chunk_text=str(row["content"]),
+        ))
+
+
+def _load_misconceptions(db: Session) -> None:
+    frame = _read_csv(DATA_ROOT / "misconceptions" / "oop_misconceptions.csv")
+    for _, row in frame.iterrows():
         db.merge(models.Misconception(
-            misconception_id=misconception_id,
-            concept_id=concept_id,
+            misconception_id=str(row["misconception_id"]),
+            concept_id=str(row["concept_id"]).upper(),
             misconception_description=str(row["misconception_description"]),
-            learner_response_example=str(row.get("learner_response_example", "")),
+            learner_response_example=str(row["learner_response_example"]),
             recommended_intervention=str(row["recommended_intervention"]),
         ))
 
 
-def _load_content_chunks(db: Session) -> None:
-    path = REPO_ROOT / "pure_academic_chunks.csv"
-    if not path.exists():
-        return
-    frame = pd.read_csv(path)
-    frame.columns = [col.strip() for col in frame.columns]
-    for _, row in frame.head(400).iterrows():
-        chunk_id = str(row.get("Chunk ID", "")).strip()
-        concept_id = str(row.get("Concept ID", "")).strip().upper()
-        text = str(row.get("Chunk Text Content", "")).strip()
-        if not chunk_id or concept_id not in {item["concept_id"] for item in adaptive.CONCEPTS} or not text:
-            continue
-        db.merge(models.ContentChunk(
-            chunk_id=chunk_id,
-            concept_id=concept_id,
-            source_page=str(row.get("Source Page", "") or ""),
-            source_title="OOP academic source pack",
-            chunk_text=text,
+def _load_questions(db: Session) -> None:
+    frame = _read_csv(DATA_ROOT / "questions" / "oop_question_bank.csv")
+    for _, row in frame.iterrows():
+        options = _split_options(row.get("options"))
+        db.merge(models.Question(
+            question_id=str(row["question_id"]),
+            concept_id=str(row["concept_id"]).upper(),
+            prompt=str(row["prompt"]),
+            question_type=str(row["question_type"]),
+            difficulty=str(row["difficulty"]),
+            options=options,
+            correct_answer=str(row["correct_answer"]),
+            explanation=str(row["explanation"]),
+            misconception_id=_optional_str(row.get("misconception_id")),
+        ))
+
+
+def _load_hint_ladders(db: Session) -> None:
+    frame = _read_csv(DATA_ROOT / "hints" / "oop_hint_ladders.csv")
+    for _, row in frame.iterrows():
+        db.merge(models.HintLadder(
+            question_id=str(row["question_id"]),
+            concept_id=str(row["concept_id"]).upper(),
+            hint_step_1=str(row["hint_step_1"]),
+            hint_step_2=str(row["hint_step_2"]),
+            hint_step_3=str(row["hint_step_3"]),
+        ))
+
+
+def _load_adaptation_rules(db: Session) -> None:
+    frame = _read_csv(DATA_ROOT / "adaptation" / "adaptation_rules.csv")
+    for _, row in frame.iterrows():
+        db.merge(models.AdaptationRule(
+            rule_id=str(row["rule_id"]),
+            trigger_condition=str(row["trigger_condition"]),
+            learner_evidence_used=str(row["learner_evidence_used"]),
+            selected_action=str(row["selected_action"]),
+            expected_profile_update=str(row["expected_profile_update"]),
+            educator_visibility=str(row["educator_visibility"]),
+            explanation=str(row["explanation"]),
         ))
 
 
@@ -170,23 +204,38 @@ def _set_mastery(db: Session, learner_id: str, values: dict[str, float]) -> None
         row.evidence_count = max(row.evidence_count, 1)
 
 
-def _hint(concept_id: str, level: int) -> str:
-    concept_name = next(item["concept_name"] for item in adaptive.CONCEPTS if item["concept_id"] == concept_id)
-    hints = {
-        1: f"Identify the OOP concept first: this question is about {concept_name}.",
-        2: "Compare the answer with the Java rule: focus on class/object relationships, access, inheritance, signatures, or runtime dispatch.",
-        3: "Use the exact Java clue in the prompt, then eliminate answers that describe a different OOP concept.",
-    }
-    return hints[level]
+def _read_csv(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        raise FileNotFoundError(f"Required seed data file not found: {path}")
+    return pd.read_csv(path).fillna("")
 
 
-def ensure_seeded(db: Session) -> None:
-    concept_count = db.scalar(select(func.count()).select_from(models.Concept))
-    question_count = db.scalar(select(func.count()).select_from(models.Question))
-    hint_ladder_count = db.scalar(select(func.count()).select_from(models.HintLadder))
-    if (
-        (concept_count or 0) < len(adaptive.CONCEPTS)
-        or (question_count or 0) < len(QUESTIONS)
-        or (hint_ladder_count or 0) < len(QUESTIONS)
-    ):
-        seed_reference_data(db)
+def _split_options(value: object) -> list[str] | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    return [item.strip() for item in text.split("|") if item.strip()]
+
+
+def _optional_str(value: object) -> str | None:
+    text = str(value).strip() if value is not None else ""
+    return text or None
+
+
+def _optional_int(value: object) -> int | None:
+    text = str(value).strip() if value is not None else ""
+    return int(text) if text else None
+
+
+def _optional_bool(value: object) -> bool | None:
+    text = str(value).strip().lower() if value is not None else ""
+    if text in {"true", "1", "yes"}:
+        return True
+    if text in {"false", "0", "no"}:
+        return False
+    return None
+
+
+def _bool(value: object) -> bool:
+    parsed = _optional_bool(value)
+    return True if parsed is None else parsed

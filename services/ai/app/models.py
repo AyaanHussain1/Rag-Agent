@@ -161,3 +161,15 @@ class AIUsageLog(Base):
     prompt_summary: Mapped[str] = mapped_column(Text, default="")
     source_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AdaptationRule(Base):
+    __tablename__ = "adaptation_rules"
+
+    rule_id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    trigger_condition: Mapped[str] = mapped_column(Text, nullable=False)
+    learner_evidence_used: Mapped[str] = mapped_column(Text, nullable=False)
+    selected_action: Mapped[str] = mapped_column(String(120), nullable=False)
+    expected_profile_update: Mapped[str] = mapped_column(Text, nullable=False)
+    educator_visibility: Mapped[str] = mapped_column(Text, nullable=False)
+    explanation: Mapped[str] = mapped_column(Text, nullable=False)

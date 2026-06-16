@@ -75,7 +75,7 @@ def get_profile(learner_id: str, db: Session = Depends(get_db)) -> dict:
 @app.post("/api/diagnostic/start")
 def diagnostic_start(db: Session = Depends(get_db)) -> dict:
     seed.ensure_seeded(db)
-    question_ids = ["Q_C001_B", "Q_C002_B", "Q_C003_I", "Q_C004_I", "Q_C005_I", "Q_C006_B"]
+    question_ids = ["Q_C001_B1", "Q_C002_B1", "Q_C003_I1", "Q_C004_I1", "Q_C005_I1", "Q_C006_B1"]
     questions = db.scalars(select(models.Question).where(models.Question.question_id.in_(question_ids))).all()
     ordered = sorted(questions, key=lambda q: question_ids.index(q.question_id))
     return {"questions": [question_payload(question) for question in ordered]}
@@ -123,7 +123,11 @@ def rag_answer(payload: schemas.RAGAnswerRequest, db: Session = Depends(get_db))
         endpoint="/api/rag/answer",
         model_name=result.get("model_name", rag_service.model_name),
         prompt_summary=payload.question[:300],
-        source_metadata={"sources": result.get("sources", [])},
+        source_metadata={
+            "sources": result.get("sources", []),
+            "source_grounding_used": bool(result.get("sources")),
+            "safeguard_triggered": not result.get("in_scope", False),
+        },
     ))
     db.commit()
     return result
@@ -133,9 +137,17 @@ def rag_answer(payload: schemas.RAGAnswerRequest, db: Session = Depends(get_db))
 def teach(payload: schemas.TeachRequest, db: Session = Depends(get_db)) -> dict:
     learner = require_learner(db, payload.learner_id)
     concept_id = payload.concept_id or adaptive.profile_payload(db, learner)["recommended_concept_id"]
-    action, reason = (payload.action, "Learner manually selected this teaching action.") if payload.action else adaptive.select_teaching_action(db, learner.learner_id, concept_id)
+    action, reason, rule_id = (payload.action, "Learner manually selected this teaching action.", "MANUAL") if payload.action else adaptive.select_teaching_action(db, learner.learner_id, concept_id)
     result = rag_service.teach(concept_id, action, learner.current_level, reason)
     if not result.get("in_scope"):
+        db.add(models.AIUsageLog(
+            learner_id=learner.learner_id,
+            endpoint="/api/teach",
+            model_name=result.get("model_name", rag_service.model_name),
+            prompt_summary=f"{concept_id}: {action}",
+            source_metadata={"safeguard_triggered": True, "source_grounding_used": False},
+        ))
+        db.commit()
         return result
     interaction = adaptive.record_interaction(
         db,
@@ -150,17 +162,17 @@ def teach(payload: schemas.TeachRequest, db: Session = Depends(get_db)) -> dict:
         None,
         action,
         reason,
-        {"sources": result.get("sources", [])},
+        {"sources": result.get("sources", []), "matched_adaptation_rule_id": rule_id},
     )
     db.add(models.AIUsageLog(
         learner_id=learner.learner_id,
         endpoint="/api/teach",
         model_name=result.get("model_name", rag_service.model_name),
         prompt_summary=f"{concept_id}: {action}",
-        source_metadata={"sources": result.get("sources", [])},
+        source_metadata={"sources": result.get("sources", []), "source_grounding_used": bool(result.get("sources")), "safeguard_triggered": False},
     ))
     db.commit()
-    return result | {"profile": adaptive.profile_payload(db, learner), "interaction_id": interaction.interaction_id}
+    return result | {"profile": adaptive.profile_payload(db, learner), "interaction_id": interaction.interaction_id, "matched_adaptation_rule_id": rule_id}
 
 
 @app.post("/api/tutor/confusion")
@@ -168,7 +180,9 @@ def tutor_confusion(payload: schemas.TutorConfusionRequest, db: Session = Depend
     learner = require_learner(db, payload.learner_id)
     concept_id = adaptive.detect_concept_id(payload.message, learner.recommended_concept_id) or "C001"
     misconception = best_misconception(db, concept_id, payload.message)
+    _, rule_reason, rule_id = adaptive.select_teaching_action(db, learner.learner_id, concept_id)
     result = rag_service.tutor_reframe(payload.message, concept_id, misconception.recommended_intervention, learner.current_level)
+    profile_reason = f"Tutor detected {misconception.misconception_id}: {misconception.misconception_description}. {rule_reason}"
     adaptive.record_interaction(
         db,
         learner,
@@ -181,19 +195,37 @@ def tutor_confusion(payload: schemas.TutorConfusionRequest, db: Session = Depend
         0,
         misconception.misconception_id,
         "misconception-focused reframe",
-        f"Tutor detected {misconception.misconception_id}: {misconception.misconception_description}",
-        {"sources": result.get("sources", [])},
+        profile_reason,
+        {"sources": result.get("sources", []), "matched_adaptation_rule_id": rule_id},
     )
+    db.add(models.AIUsageLog(
+        learner_id=learner.learner_id,
+        endpoint="/api/tutor/confusion",
+        model_name=result.get("model_name", rag_service.model_name),
+        prompt_summary=payload.message[:300],
+        source_metadata={"sources": result.get("sources", []), "source_grounding_used": bool(result.get("sources")), "safeguard_triggered": False},
+    ))
     db.commit()
-    return result | {"misconception": misconception_payload(misconception), "profile": adaptive.profile_payload(db, learner)}
+    return result | {
+        "detected_concept_id": concept_id,
+        "detected_misconception_id": misconception.misconception_id,
+        "misconception": misconception_payload(misconception),
+        "reframe": result.get("response"),
+        "guiding_question": rag_service.guiding_question(concept_id),
+        "follow_up_check": f"In one sentence, explain why this is {adaptive.CONCEPTS_BY_ID.get(concept_id, {}).get('concept_name', concept_id)} and not a neighboring OOP concept.",
+        "profile_update_reason": profile_reason,
+        "source_references": result.get("sources", []),
+        "matched_adaptation_rule_id": rule_id,
+        "profile": adaptive.profile_payload(db, learner),
+    }
 
 
 @app.post("/api/assessment/next")
 def assessment_next(payload: schemas.AssessmentNextRequest, db: Session = Depends(get_db)) -> dict:
     seed.ensure_seeded(db)
     learner = require_learner(db, payload.learner_id)
-    question, reason = adaptive.choose_question(db, learner, payload.concept_id)
-    return {"question": question_payload(question, hide_answer=True), "why_selected": reason, "profile": adaptive.profile_payload(db, learner)}
+    question, reason, rule_id = adaptive.choose_question(db, learner, payload.concept_id)
+    return {"question": question_payload(question, hide_answer=True), "why_selected": reason, "matched_adaptation_rule_id": rule_id, "profile": adaptive.profile_payload(db, learner)}
 
 
 @app.post("/api/assessment/submit")
@@ -206,16 +238,22 @@ def assessment_submit(payload: schemas.AssessmentSubmitRequest, db: Session = De
             db, learner, question.concept_id, "assessment_safeguard", question.question_id,
             payload.learner_answer, None, payload.confidence, payload.hints_used, None, None, message
         )
+        db.add(models.AIUsageLog(
+            learner_id=learner.learner_id,
+            endpoint="/api/assessment/submit",
+            model_name="deterministic-fallback",
+            prompt_summary=payload.learner_answer[:300],
+            source_metadata={"safeguard_triggered": True, "source_grounding_used": False, "question_id": question.question_id},
+        ))
         db.commit()
-        return {"safeguard": True, "feedback": message, "profile": adaptive.profile_payload(db, learner)}
+        return {"safeguard": True, "feedback": message, "matched_adaptation_rule_id": "AR012", "profile": adaptive.profile_payload(db, learner)}
 
     correct, feedback = adaptive.grade_answer(question, payload.learner_answer)
     misconception_id = None if correct else question.misconception_id
-    if correct:
-        feedback = f"Correct. {question.explanation}"
-    else:
+    feedback, feedback_rule_id = adaptive.assessment_feedback(db, learner, question, correct, feedback, payload.confidence, payload.hints_used)
+    if not correct:
         intervention = best_misconception(db, question.concept_id, payload.learner_answer).recommended_intervention
-        feedback = f"Not yet. {feedback} {intervention}"
+        feedback = f"{feedback} {intervention}"
     attempt = models.AssessmentAttempt(
         learner_id=learner.learner_id,
         question_id=question.question_id,
@@ -248,6 +286,7 @@ def assessment_submit(payload: schemas.AssessmentSubmitRequest, db: Session = De
         "feedback": feedback,
         "attempt_id": attempt.attempt_id,
         "interaction_id": interaction.interaction_id,
+        "matched_adaptation_rule_id": feedback_rule_id,
         "profile": adaptive.profile_payload(db, learner),
     }
 
@@ -293,6 +332,12 @@ def educator_overview(db: Session = Depends(get_db)) -> dict:
 def educator_alerts(db: Session = Depends(get_db)) -> list[dict]:
     alerts = db.scalars(select(models.EducatorAlert).where(models.EducatorAlert.active == True).order_by(models.EducatorAlert.created_at.desc())).all()
     return [alert_payload(db, alert) for alert in alerts]
+
+
+@app.get("/api/educator/ai-logs")
+def educator_ai_logs(db: Session = Depends(get_db)) -> list[dict]:
+    rows = db.scalars(select(models.AIUsageLog).order_by(models.AIUsageLog.created_at.desc()).limit(40)).all()
+    return [ai_log_payload(row) for row in rows]
 
 
 @app.get("/api/educator/learners/{learner_id}")
@@ -373,6 +418,20 @@ def alert_payload(db: Session, alert: models.EducatorAlert) -> dict:
         "evidence": alert.evidence,
         "recommended_action": alert.recommended_action,
         "created_at": alert.created_at.isoformat() if alert.created_at else None,
+    }
+
+
+def ai_log_payload(row: models.AIUsageLog) -> dict:
+    metadata = row.source_metadata or {}
+    return {
+        "log_id": row.log_id,
+        "timestamp": row.created_at.isoformat() if row.created_at else None,
+        "feature_area": row.endpoint,
+        "learner_id": row.learner_id,
+        "model_name": row.model_name,
+        "prompt_summary": row.prompt_summary,
+        "source_grounding_used": bool(metadata.get("source_grounding_used") or metadata.get("sources")),
+        "safeguard_triggered": bool(metadata.get("safeguard_triggered")),
     }
 
 

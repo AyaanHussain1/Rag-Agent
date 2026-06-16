@@ -10,6 +10,14 @@ type TutorResponse = {
   concept_id: string;
   response: string;
   sources: Source[];
+  detected_concept_id?: string;
+  detected_misconception_id?: string;
+  reframe?: string;
+  guiding_question?: string;
+  follow_up_check?: string;
+  profile_update_reason?: string;
+  matched_adaptation_rule_id?: string;
+  source_references?: Source[];
   misconception?: { misconception_id: string; description: string; recommended_intervention: string };
   profile?: LearnerProfile;
   message?: string;
@@ -54,18 +62,34 @@ export default function TutorPage() {
           {result?.response && (
             <article className="card">
               <div className="mb-3 flex flex-wrap gap-2">
-                <span className="badge">{result.concept_id}</span>
-                {result.misconception && <span className="badge border-rose-200 bg-rose-50 text-rose-700">{result.misconception.misconception_id}</span>}
+                <span className="badge">{result.detected_concept_id || result.concept_id}</span>
+                {result.detected_misconception_id && <span className="badge border-rose-200 bg-rose-50 text-rose-700">{result.detected_misconception_id}</span>}
+                {result.matched_adaptation_rule_id && <span className="badge border-teal-200 bg-teal-50 text-teal-800">{result.matched_adaptation_rule_id}</span>}
               </div>
-              <pre className="whitespace-pre-wrap rounded-md bg-slate-50 p-4 text-sm leading-6 text-slate-800">{result.response}</pre>
+              <pre className="whitespace-pre-wrap rounded-md bg-slate-50 p-4 text-sm leading-6 text-slate-800">{result.reframe || result.response}</pre>
+              {result.guiding_question && (
+                <div className="mt-3 rounded-md border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900">
+                  <span className="font-medium">Guiding question:</span> {result.guiding_question}
+                </div>
+              )}
+              {result.follow_up_check && (
+                <div className="mt-3 rounded-md border border-slate-200 p-3 text-sm text-slate-700">
+                  <span className="font-medium">Follow-up check:</span> {result.follow_up_check}
+                </div>
+              )}
               {result.misconception && (
                 <p className="mt-3 text-sm text-slate-600">
                   Misconception bank used: {result.misconception.description}
                 </p>
               )}
+              {result.profile_update_reason && (
+                <p className="mt-3 text-sm text-slate-600">
+                  Profile update: {result.profile_update_reason}
+                </p>
+              )}
             </article>
           )}
-          <SourceReferenceBox sources={result?.sources} />
+          <SourceReferenceBox sources={result?.source_references || result?.sources} />
         </div>
       </section>
     </div>

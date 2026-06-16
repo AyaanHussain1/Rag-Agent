@@ -14,6 +14,7 @@ export default function HomePage() {
           <div className="mt-7 flex flex-wrap gap-3">
             <Link href="/learner" className="btn btn-primary"><GraduationCap className="h-4 w-4" /> Start as Learner</Link>
             <Link href="/educator" className="btn"><BarChart3 className="h-4 w-4" /> Open Educator Dashboard</Link>
+            <Link href="/safeguards" className="btn"><ShieldCheck className="h-4 w-4" /> Safeguard demo</Link>
             <Link href="/disclosure" className="btn"><ShieldCheck className="h-4 w-4" /> AI disclosure</Link>
           </div>
         </div>

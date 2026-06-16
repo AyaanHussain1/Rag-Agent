@@ -1,0 +1,25 @@
+{
+  "sources": [
+    {
+      "source_id": "SRC001",
+      "title": "Java OOP Foundations: Classes and Objects",
+      "file": "oop_source_01_classes_objects.md",
+      "verification_status": "team-authored reviewed source material for prototype demo",
+      "concepts": ["C001"]
+    },
+    {
+      "source_id": "SRC002",
+      "title": "Java OOP Foundations: Encapsulation and Inheritance",
+      "file": "oop_source_02_encapsulation_inheritance.md",
+      "verification_status": "team-authored reviewed source material for prototype demo",
+      "concepts": ["C002", "C003"]
+    },
+    {
+      "source_id": "SRC003",
+      "title": "Java OOP Foundations: Overloading, Overriding, and Polymorphism",
+      "file": "oop_source_03_polymorphism_overloading_overriding.md",
+      "verification_status": "team-authored reviewed source material for prototype demo",
+      "concepts": ["C004", "C005", "C006"]
+    }
+  ]
+}

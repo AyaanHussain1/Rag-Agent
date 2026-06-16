@@ -55,6 +55,7 @@ export type Question = {
 
 export type Source = {
   source_title: string;
+  source_document?: string;
   chunk_id: string;
   concept_id: string;
   source_page?: string;

@@ -13,6 +13,7 @@ type TeachResponse = {
   response: string;
   guiding_question: string;
   sources: Source[];
+  matched_adaptation_rule_id?: string;
   message?: string;
   profile?: LearnerProfile;
 };
@@ -86,6 +87,7 @@ export default function LearnPage() {
               <div className="mb-3 flex flex-wrap gap-2">
                 <span className="badge">{result.concept_id}</span>
                 <span className="badge border-teal-200 bg-teal-50 text-teal-800">{result.teaching_action}</span>
+                {result.matched_adaptation_rule_id && <span className="badge">{result.matched_adaptation_rule_id}</span>}
               </div>
               <pre className="whitespace-pre-wrap rounded-md bg-slate-50 p-4 text-sm leading-6 text-slate-800">{result.response}</pre>
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">

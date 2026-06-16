@@ -170,9 +170,21 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint("log_id"),
     )
+    op.create_table(
+        "adaptation_rules",
+        sa.Column("rule_id", sa.String(length=40), nullable=False),
+        sa.Column("trigger_condition", sa.Text(), nullable=False),
+        sa.Column("learner_evidence_used", sa.Text(), nullable=False),
+        sa.Column("selected_action", sa.String(length=120), nullable=False),
+        sa.Column("expected_profile_update", sa.Text(), nullable=False),
+        sa.Column("educator_visibility", sa.Text(), nullable=False),
+        sa.Column("explanation", sa.Text(), nullable=False),
+        sa.PrimaryKeyConstraint("rule_id"),
+    )
 
 
 def downgrade() -> None:
+    op.drop_table("adaptation_rules")
     op.drop_table("ai_usage_logs")
     op.drop_index(op.f("ix_educator_alerts_learner_id"), table_name="educator_alerts")
     op.drop_table("educator_alerts")

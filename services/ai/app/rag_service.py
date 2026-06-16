@@ -11,7 +11,8 @@ from .adaptive import CONCEPT_KEYWORDS, CONCEPTS, detect_concept_id
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CHUNK_CSV = REPO_ROOT / "pure_academic_chunks_with_vectors.csv"
+BALANCED_CHUNK_CSV = REPO_ROOT / "data" / "chunks" / "oop_knowledge_chunks.csv"
+LEGACY_CHUNK_CSV = REPO_ROOT / "pure_academic_chunks_with_vectors.csv"
 SUPPORTED_CONCEPTS = {item["concept_id"]: item for item in CONCEPTS}
 OUT_OF_SCOPE_MESSAGE = (
     "I cannot answer that from the current LearnShift AI OOP module. "
@@ -30,9 +31,10 @@ class RAGService:
         self._load_gemini()
 
     def _load_chunks(self) -> None:
-        if not CHUNK_CSV.exists():
+        chunk_csv = BALANCED_CHUNK_CSV if BALANCED_CHUNK_CSV.exists() else LEGACY_CHUNK_CSV
+        if not chunk_csv.exists():
             return
-        df = pd.read_csv(CHUNK_CSV)
+        df = pd.read_csv(chunk_csv)
         df.columns = [column.strip() for column in df.columns]
         vector_col = "Vector_Embeddings" if "Vector_Embeddings" in df.columns else "vector_embeddings"
         parsed: list[list[float]] = []
@@ -88,7 +90,7 @@ class RAGService:
         scored = []
         query_terms = set(query.lower().split())
         for _, row in candidates.iterrows():
-            text = str(row.get("Chunk Text Content", row.get("chunk_text", ""))).lower()
+            text = str(row.get("Chunk Text Content", row.get("chunk_text", row.get("content", "")))).lower()
             keyword_score = sum(3 for kw in CONCEPT_KEYWORDS.get(detected, []) if kw in text)
             overlap = len(query_terms.intersection(set(text.split())))
             scored.append((keyword_score + overlap, row))
@@ -187,12 +189,15 @@ class RAGService:
 
     def _source_payload(self, row: pd.Series, score: float, concept_id: str) -> dict:
         chunk_id = str(row.get("Chunk ID", row.get("chunk_id", "CH_UNKNOWN")))
-        source_page = str(row.get("Source Page", row.get("source_page", "")) or "")
-        text = str(row.get("Chunk Text Content", row.get("chunk_text", "")))
+        source_page = str(row.get("Source Page", row.get("source_page", row.get("page_or_section", ""))) or "")
+        source_title = str(row.get("source_title", row.get("Source Title", "OOP academic source pack")))
+        source_document = str(row.get("source_document", ""))
+        text = str(row.get("Chunk Text Content", row.get("chunk_text", row.get("content", ""))))
         return {
             "in_scope": True,
             "sources": [{
-                "source_title": "OOP academic source pack",
+                "source_title": source_title,
+                "source_document": source_document,
                 "chunk_id": chunk_id,
                 "concept_id": concept_id,
                 "source_page": source_page,

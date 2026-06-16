@@ -9,6 +9,7 @@ type Alert = {
   concept_name: string;
   evidence: string;
   recommended_action: string;
+  created_at?: string;
 };
 
 export function EducatorAlertCard({ alert }: { alert: Alert }) {
@@ -22,7 +23,8 @@ export function EducatorAlertCard({ alert }: { alert: Alert }) {
             <h3 className="font-semibold text-ink">{alert.alert_type}</h3>
             <span className="badge">{alert.severity}</span>
           </div>
-          <p className="mt-1 text-sm text-slate-700">{alert.learner_name} · {alert.concept_name}</p>
+          <p className="mt-1 text-sm text-slate-700">{alert.learner_name} - {alert.concept_name}</p>
+          {alert.created_at && <p className="mt-1 text-xs text-slate-500">{new Date(alert.created_at).toLocaleString()}</p>}
           <p className="mt-3 text-sm text-slate-600"><span className="font-medium">Evidence:</span> {alert.evidence}</p>
           <p className="mt-2 text-sm text-slate-600"><span className="font-medium">Teacher action:</span> {alert.recommended_action}</p>
         </div>

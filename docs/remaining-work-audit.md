@@ -2,6 +2,8 @@
 
 Date: 2026-06-17
 
+> Note: This audit captured the pre-completion state. The current competition-ready status is tracked in `docs/competition-readiness-checklist.md` and validated by `scripts/validate_competition_readiness.py`.
+
 ## A. Overall Status
 
 - Estimated completion: **58% competition-ready**, based on the repository, `WEB_FEATURES.txt`, local docs, code, CSVs, and SQLite DB.

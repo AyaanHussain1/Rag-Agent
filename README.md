@@ -1,4 +1,130 @@
-# Adaptive RAG Agent for Object-Oriented Programming Learning
+# LearnShift AI - Adaptive Java OOP Learning Agent
+
+## Competition-Ready Web Demo
+
+LearnShift AI now includes a FastAPI + Next.js adaptive learning prototype for the SkillVerse 2026 AI Rapid Forge LearnShift AI challenge. The original CLI RAG files remain in the repository, but the competition demo uses:
+
+- Backend: `services/ai/app/`
+- Frontend: `apps/web/`
+- Reproducible dataset: `data/`
+- Validation and smoke scripts: `scripts/`
+
+The app demonstrates this learning cycle:
+
+```text
+Observe learner evidence -> Diagnose current need -> Decide next teaching action -> Act -> Evaluate response -> Update learner state
+```
+
+### Environment Variables
+
+Copy `.env.example` or set these values:
+
+```bash
+GOOGLE_API_KEY=optional_key_for_live_generation
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+DATABASE_URL=sqlite:///./learnshift_ai.db
+```
+
+`GOOGLE_API_KEY` is optional. Without it, the backend uses deterministic grounded fallback responses.
+
+### Backend Setup
+
+```bash
+cd services/ai
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+```
+
+Seed the demo dataset:
+
+```bash
+curl -X POST http://localhost:8000/api/demo/seed
+```
+
+### Frontend Setup
+
+```bash
+cd apps/web
+npm install
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+### Seeded Learners
+
+After `/api/demo/seed`, use:
+
+- `demo_beginner`: weak prerequisite knowledge.
+- `demo_confident_wrong`: confident but incorrect learner.
+- `demo_repeater`: repeated overriding/overloading misconception.
+- `demo_fast_careless`: strong learner with careless mistakes.
+- `demo_advanced`: advanced learner ready for challenge work.
+
+### Validation
+
+From the repo root, after seeding:
+
+```bash
+python scripts/validate_competition_readiness.py
+```
+
+The script prints PASS/FAIL checks and writes:
+
+```text
+data/validation/dataset_inventory.json
+```
+
+### Smoke Test
+
+Start the backend first, then run:
+
+```bash
+python scripts/smoke_test_demo_flow.py
+```
+
+The smoke test seeds data, calls learner, diagnostic, teach, assessment, hint, tutor, RAG, educator, alert, detail, and AI log endpoints. It does not require an external API key.
+
+### Live Demo Script
+
+Use:
+
+```text
+docs/live-demo-script.md
+```
+
+Core flow:
+
+1. Open home page.
+2. Start as learner.
+3. Seed demo data.
+4. Pick beginner learner.
+5. Show profile and recommendation.
+6. Teach the same concept to beginner and advanced learners.
+7. Take adaptive assessment, request hints, and submit an incorrect answer.
+8. Open tutor mode and show misconception reframe.
+9. Open educator dashboard and show alerts/evidence.
+10. Open safeguard demo and test out-of-scope/direct-answer behavior.
+11. Open disclosure page.
+
+### Competition Documentation
+
+- `docs/competition-readiness-checklist.md`
+- `docs/dataset-report.md`
+- `docs/technical-report.md`
+- `docs/architecture.md`
+- `docs/live-demo-script.md`
+
+---
+
+# Original CLI RAG Agent Notes
 
 ## Project Overview
 
@@ -291,4 +417,3 @@ The project also extends beyond simple Q&A by adding adaptive learning behavior.
 ## Conclusion
 
 The Adaptive RAG Agent is an educational AI prototype for learning Object-Oriented Programming. It combines PDF-based content extraction, data cleaning, vector embeddings, semantic retrieval, and Gemini-powered response generation to create a personalized tutoring experience.
-

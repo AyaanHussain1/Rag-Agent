@@ -16,6 +16,8 @@ CONCEPTS = [
     {"concept_id": "C006", "concept_name": "Polymorphism", "description": "One interface or reference producing different runtime behavior."},
 ]
 
+CONCEPTS_BY_ID = {concept["concept_id"]: concept for concept in CONCEPTS}
+
 CONCEPT_KEYWORDS = {
     "C001": ["class", "object", "instance", "constructor", "field"],
     "C002": ["encapsulation", "private", "public", "getter", "setter", "access"],
@@ -88,7 +90,7 @@ def get_mastery_row(db: Session, learner_id: str, concept_id: str) -> models.Lea
     return row
 
 
-def select_teaching_action(db: Session, learner_id: str, concept_id: str) -> tuple[str, str]:
+def select_teaching_action(db: Session, learner_id: str, concept_id: str) -> tuple[str, str, str]:
     mastery = get_mastery_row(db, learner_id, concept_id).mastery_score
     recent = db.scalars(
         select(models.Interaction)
@@ -100,20 +102,24 @@ def select_teaching_action(db: Session, learner_id: str, concept_id: str) -> tup
     low_confidence = [item.confidence for item in recent if item.confidence is not None and item.confidence <= 2]
     repeated_misconception = _repeated_misconception_id(recent)
     last = recent[0] if recent else None
+    learner = db.get(models.Learner, learner_id)
 
     if repeated_misconception:
-        return "misconception-focused reframe", "Repeated misconception evidence suggests the learner needs a targeted contrast before new practice."
+        return "misconception-focused reframe", "Repeated misconception evidence suggests the learner needs a targeted contrast before new practice.", "AR006"
     if hint_total >= 4:
-        return "prerequisite review", "Recent hint usage is high, so the next teaching step should rebuild prerequisite knowledge."
+        return "prerequisite review", "Recent hint usage is high, so the next teaching step should rebuild prerequisite knowledge.", "AR009"
     if mastery < 40 or low_confidence:
-        return "simplified explanation", "Weak mastery or low confidence indicates the explanation should reduce cognitive load."
+        rule_id = "AR001" if mastery < 40 else "AR004"
+        return "simplified explanation", "Weak mastery or low confidence indicates the explanation should reduce cognitive load.", rule_id
     if last and last.correct is True and last.confidence is not None and last.confidence <= 2:
-        return "analogy", "The learner answered correctly with low confidence, so an analogy can stabilize the idea."
+        return "analogy", "The learner answered correctly with low confidence, so an analogy can stabilize the idea.", "AR008"
     if last and last.correct is False and last.confidence is not None and last.confidence >= 4:
-        return "corrective explanation plus diagnostic question", "An incorrect high-confidence answer is evidence of a confident misconception."
+        return "corrective explanation plus diagnostic question", "An incorrect high-confidence answer is evidence of a confident misconception.", "AR005"
+    if learner and learner.current_level == "ADVANCED" and mastery >= 75:
+        return "advanced application", "Advanced level and strong mastery mean the learner should receive a transfer task rather than basic review.", "AR011"
     if mastery >= 70:
-        return "advanced application", "Recent evidence shows strong mastery, so the learner is ready for a harder application."
-    return "step-by-step explanation", "Developing mastery benefits from a worked sequence before independent practice."
+        return "advanced application", "Recent evidence shows strong mastery, so the learner is ready for a harder application.", "AR003"
+    return "step-by-step explanation", "Developing mastery benefits from a worked sequence before independent practice.", "AR002"
 
 
 def profile_payload(db: Session, learner: models.Learner) -> dict:
@@ -171,7 +177,9 @@ def mastery_delta(correct: bool | None, confidence: int | None, hints_used: int,
             return 10, "Correct, high confidence, no hints: strong positive evidence."
         if hints_used == 0:
             return 8, "Correct without hints: mastery increased."
-        return max(2, 7 - hints_used * 2), f"Correct after {hints_used} hint(s): smaller mastery gain."
+        return max(1, 7 - hints_used * 2), f"Correct after {hints_used} hint(s): smaller mastery gain."
+    if correct is False and hints_used >= 2:
+        return -6, "Incorrect after multiple hints: remediation recommended."
     if correct is False and confidence >= 4:
         return (-13 if repeated_misconception else -8), "Incorrect with high confidence: likely misconception."
     if correct is False and confidence <= 2:
@@ -242,7 +250,7 @@ def record_interaction(
     return interaction
 
 
-def choose_question(db: Session, learner: models.Learner, concept_id: str | None) -> tuple[models.Question, str]:
+def choose_question(db: Session, learner: models.Learner, concept_id: str | None) -> tuple[models.Question, str, str]:
     profile = profile_payload(db, learner)
     target_concept = concept_id or profile["recommended_concept_id"]
     mastery = get_mastery_row(db, learner.learner_id, target_concept).mastery_score
@@ -254,20 +262,28 @@ def choose_question(db: Session, learner: models.Learner, concept_id: str | None
     ).all()
     repeated_errors = sum(1 for item in recent if item.correct is False)
     low_conf = any(item.confidence is not None and item.confidence <= 2 for item in recent)
+    high_conf_wrong = any(item.correct is False and item.confidence is not None and item.confidence >= 4 for item in recent)
+    hint_total = sum(item.hints_used or 0 for item in recent)
     strong_recent = len(recent) >= 2 and all(item.correct is True for item in recent[:2]) and mastery >= 70
 
     if repeated_errors >= 2:
-        difficulty, reason = "Basic", "Repeated incorrect attempts triggered an easier consolidation question."
+        difficulty, reason, rule_id = "Basic", "Repeated incorrect attempts triggered an easier consolidation question.", "AR007"
     elif low_conf:
-        difficulty, reason = "Basic" if mastery < 60 else "Intermediate", "Low confidence triggered a confidence-building question."
+        difficulty, reason, rule_id = "Basic" if mastery < 60 else "Intermediate", "Low confidence triggered a confidence-building question.", "AR004"
+    elif high_conf_wrong:
+        difficulty, reason, rule_id = "Basic", "High-confidence incorrect evidence triggered a diagnostic consolidation question.", "AR005"
+    elif hint_total >= 4:
+        difficulty, reason, rule_id = "Basic", "High hint usage triggered a prerequisite review question.", "AR009"
     elif strong_recent:
-        difficulty, reason = "Advanced", "Strong recent mastery triggered a challenge question."
+        difficulty, reason, rule_id = "Advanced", "Strong recent mastery triggered a challenge question.", "AR010"
+    elif learner.current_level == "ADVANCED" and mastery >= 75:
+        difficulty, reason, rule_id = "Advanced", "Advanced learner with strong mastery should not receive basic material.", "AR011"
     elif mastery < 40:
-        difficulty, reason = "Basic", "Weak mastery triggered a basic question."
+        difficulty, reason, rule_id = "Basic", "Weak mastery triggered a basic question.", "AR001"
     elif mastery < 70:
-        difficulty, reason = "Intermediate", "Developing mastery triggered an intermediate question."
+        difficulty, reason, rule_id = "Intermediate", "Developing mastery triggered an intermediate question.", "AR002"
     else:
-        difficulty, reason = "Advanced", "Mastered status triggered an advanced question."
+        difficulty, reason, rule_id = "Advanced", "Mastered status triggered an advanced question.", "AR003"
 
     question = db.scalar(
         select(models.Question)
@@ -278,13 +294,13 @@ def choose_question(db: Session, learner: models.Learner, concept_id: str | None
         question = db.scalar(select(models.Question).where(models.Question.concept_id == target_concept).order_by(func.random()))
     if question is None:
         question = db.scalar(select(models.Question).order_by(func.random()))
-    return question, reason
+    return question, reason, rule_id
 
 
 def grade_answer(question: models.Question, answer: str) -> tuple[bool, str]:
     normalized = _normalize(answer)
     correct = _normalize(question.correct_answer)
-    if question.question_type == "Multiple choice":
+    if question.question_type in {"Multiple choice", "MCQ"}:
         option_hit = normalized == correct or normalized[:1] == correct[:1]
         return option_hit, "Matched the expected option." if option_hit else "The selected option does not match the concept being tested."
     keywords = [part.strip() for part in correct.split("|")]
@@ -297,6 +313,41 @@ def grade_answer(question: models.Question, answer: str) -> tuple[bool, str]:
 def safeguard_direct_answer_request(text: str) -> bool:
     lowered = text.lower()
     return any(phrase in lowered for phrase in ["just give me the answer", "give answer", "tell me the answer", "final answer only"])
+
+
+def assessment_feedback(
+    db: Session,
+    learner: models.Learner,
+    question: models.Question,
+    correct: bool,
+    base_feedback: str,
+    confidence: int,
+    hints_used: int,
+) -> tuple[str, str]:
+    recent = db.scalars(
+        select(models.Interaction)
+        .where(models.Interaction.learner_id == learner.learner_id, models.Interaction.concept_id == question.concept_id)
+        .order_by(models.Interaction.created_at.desc())
+        .limit(5)
+    ).all()
+    repeated_error = sum(1 for item in recent if item.correct is False) >= 2
+    careless_error = (not correct and confidence >= 4 and hints_used == 0 and any(item.correct is True for item in recent[:2]))
+    strong_mastery = get_mastery_row(db, learner.learner_id, question.concept_id).mastery_score >= 70
+    if correct:
+        if hints_used == 0 and confidence >= 4:
+            return f"Correct. Strong unaided answer: {question.explanation}", "AR010" if strong_mastery else "AR003"
+        if hints_used:
+            return f"Correct after {hints_used} hint(s). {question.explanation} Your mastery increases, but less than an unaided answer.", "AR009"
+        return f"Correct. {question.explanation}", "AR002"
+    if repeated_error:
+        return f"Not yet. {base_feedback} This is a repeated error, so the next step is an easier consolidation question before new material.", "AR007"
+    if careless_error:
+        return f"Not yet. Your recent work shows you may know this concept, but this high-confidence miss looks careless. Re-read the exact method or type clue: {question.explanation}", "AR008"
+    if confidence <= 2:
+        return f"Not yet. {base_feedback} Low confidence is useful evidence: review the prerequisite idea and try one guided example.", "AR004"
+    if confidence >= 4:
+        return f"Not yet. {base_feedback} Because confidence was high, this may be a misconception rather than a lucky miss.", "AR005"
+    return f"Not yet. {base_feedback} {question.explanation}", "AR002"
 
 
 def refresh_alerts_for_learner(db: Session, learner_id: str) -> None:
@@ -314,21 +365,27 @@ def refresh_alerts_for_learner(db: Session, learner_id: str) -> None:
 
     for row in mastery:
         if row.mastery_score < 35:
-            _add_alert(db, learner_id, row.concept_id, "Low mastery alert", f"Mastery is {row.mastery_score:.0f}/100.", "Schedule a short reteach and assign one basic check question.", "high")
+            _add_alert(db, learner_id, row.concept_id, "Low mastery alert", f"Mastery is {row.mastery_score:.0f}/100. Recent evidence: {_interaction_ids(by_concept.get(row.concept_id, [])[:3])}.", "Schedule a short reteach and assign one basic check question.", "high")
         concept_items = by_concept.get(row.concept_id, [])
-        if sum(item.hints_used for item in concept_items[:6]) >= 6:
-            _add_alert(db, learner_id, row.concept_id, "Excessive hint usage alert", "Six or more hints used in recent attempts.", "Use prerequisite review before more assessment.", "medium")
-        if sum(1 for item in concept_items[:5] if item.correct is False) >= 3:
-            _add_alert(db, learner_id, row.concept_id, "Repeated incorrect attempts alert", "Three recent incorrect attempts on the same concept.", "Give a worked example, then a near-transfer question.", "high")
+        if sum(item.hints_used for item in concept_items[:6]) >= 5:
+            _add_alert(db, learner_id, row.concept_id, "Excessive hint usage alert", f"Six or more hints used in recent attempts. Evidence: {_interaction_ids(concept_items[:6])}.", "Use prerequisite review before more assessment.", "medium")
+        incorrect_count = sum(1 for item in concept_items[:5] if item.correct is False)
+        if incorrect_count >= 3:
+            _add_alert(db, learner_id, row.concept_id, "Repeated incorrect attempts alert", f"Three recent incorrect attempts on the same concept. Evidence: {_interaction_ids([item for item in concept_items[:5] if item.correct is False])}.", "Give a worked example, then a near-transfer question.", "high")
+        if incorrect_count >= 2 and row.mastery_score <= 45:
+            _add_alert(db, learner_id, row.concept_id, "No progress after repeated attempts alert", f"Repeated incorrect attempts and mastery remains {row.mastery_score:.0f}/100. Evidence: {_interaction_ids(concept_items[:5])}.", "Pause assessment and reteach with a worked example plus oral explanation.", "high")
+        high_conf_wrong = [item for item in concept_items[:6] if item.correct is False and item.confidence is not None and item.confidence >= 4]
+        if len(high_conf_wrong) >= 1:
+            _add_alert(db, learner_id, row.concept_id, "High confidence but incorrect alert", f"High-confidence incorrect response(s). Evidence: {_interaction_ids(high_conf_wrong)}.", "Ask the learner to explain the tempting answer, then contrast it with the Java rule.", "high")
         low_conf = [item.confidence for item in concept_items[:6] if item.confidence is not None and item.confidence <= 2]
         if len(low_conf) >= 3:
-            _add_alert(db, learner_id, row.concept_id, "Low confidence alert", "Three recent low-confidence responses.", "Pair the learner with confidence-building oral explanation.", "medium")
+            _add_alert(db, learner_id, row.concept_id, "Low confidence alert", f"Three recent low-confidence responses. Evidence: {_interaction_ids(concept_items[:6])}.", "Pair the learner with confidence-building oral explanation.", "medium")
         misconception_counts = Counter(item.misconception_id for item in concept_items if item.misconception_id)
         for misconception_id, count in misconception_counts.items():
             if count >= 2:
-                _add_alert(db, learner_id, row.concept_id, "Repeated misconception alert", f"{misconception_id} appeared {count} times.", "Use misconception contrast: ask learner to explain why the tempting answer is wrong.", "high")
+                _add_alert(db, learner_id, row.concept_id, "Repeated misconception alert", f"{misconception_id} appeared {count} times. Evidence: {_interaction_ids([item for item in concept_items if item.misconception_id == misconception_id])}.", "Use misconception contrast: ask learner to explain why the tempting answer is wrong.", "high")
         if row.mastery_score >= 82 and _recent_accuracy(concept_items[:5]) >= 0.8:
-            _add_alert(db, learner_id, row.concept_id, "Advanced learner ready for challenge alert", f"Mastery is {row.mastery_score:.0f}/100 with strong recent accuracy.", "Assign an advanced Java design or debugging challenge.", "low")
+            _add_alert(db, learner_id, row.concept_id, "Advanced learner ready for challenge alert", f"Mastery is {row.mastery_score:.0f}/100 with strong recent accuracy. Evidence: {_interaction_ids(concept_items[:5])}.", "Assign an advanced Java design or debugging challenge.", "low")
     db.flush()
 
 
@@ -380,6 +437,11 @@ def _recent_accuracy(items: list[models.Interaction]) -> float:
     if not graded:
         return 0
     return sum(1 for item in graded if item.correct) / len(graded)
+
+
+def _interaction_ids(items: list[models.Interaction]) -> str:
+    ids = [((item.metadata_json or {}).get("seed_interaction_id") or item.interaction_id) for item in items if item]
+    return ", ".join(ids[:6]) if ids else "no recent interaction IDs"
 
 
 def _add_alert(db: Session, learner_id: str, concept_id: str, alert_type: str, evidence: str, action: str, severity: str) -> None:
