@@ -44,6 +44,24 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("concept_id"),
     )
     op.create_table(
+        "source_documents",
+        sa.Column("source_id", sa.String(length=40), nullable=False),
+        sa.Column("title", sa.String(length=200), nullable=False),
+        sa.Column("file_name", sa.String(length=200), nullable=False),
+        sa.Column("verification_status", sa.Text(), nullable=False),
+        sa.Column("concepts", sa.JSON(), nullable=True),
+        sa.PrimaryKeyConstraint("source_id"),
+    )
+    op.create_table(
+        "learning_outcomes",
+        sa.Column("outcome_id", sa.String(length=40), nullable=False),
+        sa.Column("concept_id", sa.String(length=20), nullable=False),
+        sa.Column("description", sa.Text(), nullable=False),
+        sa.Column("bloom_level", sa.String(length=40), nullable=False),
+        sa.ForeignKeyConstraint(["concept_id"], ["concepts.concept_id"]),
+        sa.PrimaryKeyConstraint("outcome_id"),
+    )
+    op.create_table(
         "content_chunks",
         sa.Column("chunk_id", sa.String(length=40), nullable=False),
         sa.Column("concept_id", sa.String(length=20), nullable=False),
@@ -198,5 +216,7 @@ def downgrade() -> None:
     op.drop_table("hint_ladders")
     op.drop_table("questions")
     op.drop_table("content_chunks")
+    op.drop_table("learning_outcomes")
+    op.drop_table("source_documents")
     op.drop_table("concepts")
     op.drop_table("learners")

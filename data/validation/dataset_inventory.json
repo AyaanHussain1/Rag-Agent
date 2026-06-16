@@ -92,12 +92,12 @@
     {
       "check": "AI usage log table exists",
       "status": "PASS",
-      "detail": "['adaptation_rules', 'ai_usage_logs', 'assessment_attempts', 'concepts', 'content_chunks', 'educator_alerts', 'hint_ladders', 'interactions', 'learner_mastery', 'learners', 'misconceptions', 'questions']"
+      "detail": "['adaptation_rules', 'ai_usage_logs', 'assessment_attempts', 'concepts', 'content_chunks', 'educator_alerts', 'hint_ladders', 'interactions', 'learner_mastery', 'learners', 'learning_outcomes', 'misconceptions', 'questions', 'source_documents']"
     },
     {
       "check": "AI usage log table has records after seed/demo",
       "status": "PASS",
-      "detail": "17 AI log rows"
+      "detail": "18 AI log rows"
     },
     {
       "check": "6 educator alert types minimum",
@@ -117,7 +117,7 @@
     {
       "check": "75 interactions after seeding",
       "status": "PASS",
-      "detail": "114 interactions"
+      "detail": "117 interactions"
     }
   ]
 }

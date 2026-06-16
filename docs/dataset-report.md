@@ -23,6 +23,12 @@ These files cover the six required concepts:
 - `C005` Method Overriding
 - `C006` Polymorphism
 
+The source manifest (`data/sources/source_manifest.json`) is seeded into the `source_documents` table so every grounded response can be traced to a titled, concept-tagged source record.
+
+## Learning Outcomes
+
+The learning outcome file is `data/outcomes/learning_outcomes.csv`. It defines six measurable outcomes, one per concept, each tagged with a Bloom level (Understand, Apply, Analyze). These are seeded into the `learning_outcomes` table and define what mastery of each concept should demonstrate.
+
 ## Knowledge Chunks
 
 The balanced RAG chunk file is `data/chunks/oop_knowledge_chunks.csv`. It contains 24 chunks, with 4 chunks per concept. Each chunk includes a chunk ID, concept ID, concept name, source title, source document, section marker, content, and keywords. The backend RAG service prefers this balanced chunk file and falls back to deterministic keyword retrieval when embeddings or a Gemini API key are unavailable.

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -12,11 +13,18 @@ DATA_ROOT = REPO_ROOT / "data"
 
 
 def seed_reference_data(db: Session) -> None:
+    # Insert parent rows before child rows. MySQL/InnoDB enforces foreign keys at
+    # statement time, so concepts must exist before chunks/questions, and questions
+    # before hint_ladders. Explicit flushes guarantee that ordering on every backend.
     for concept in adaptive.CONCEPTS:
         db.merge(models.Concept(**concept))
+    db.flush()
+    _load_source_documents(db)
+    _load_learning_outcomes(db)
     _load_chunks(db)
     _load_misconceptions(db)
     _load_questions(db)
+    db.flush()
     _load_hint_ladders(db)
     _load_adaptation_rules(db)
     db.commit()
@@ -128,6 +136,35 @@ def ensure_seeded(db: Session) -> None:
     rule_count = db.scalar(select(func.count()).select_from(models.AdaptationRule)) or 0
     if concept_count < len(adaptive.CONCEPTS) or question_count < 36 or hint_count < 12 or rule_count < 12:
         seed_reference_data(db)
+
+
+def _load_source_documents(db: Session) -> None:
+    manifest_path = DATA_ROOT / "sources" / "source_manifest.json"
+    if not manifest_path.exists():
+        return
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for entry in manifest.get("sources", []):
+        db.merge(models.SourceDocument(
+            source_id=str(entry["source_id"]),
+            title=str(entry.get("title", "")),
+            file_name=str(entry.get("file", "")),
+            verification_status=str(entry.get("verification_status", "")),
+            concepts=list(entry.get("concepts", [])),
+        ))
+
+
+def _load_learning_outcomes(db: Session) -> None:
+    path = DATA_ROOT / "outcomes" / "learning_outcomes.csv"
+    if not path.exists():
+        return
+    frame = _read_csv(path)
+    for _, row in frame.iterrows():
+        db.merge(models.LearningOutcome(
+            outcome_id=str(row["outcome_id"]),
+            concept_id=str(row["concept_id"]).upper(),
+            description=str(row["description"]),
+            bloom_level=str(row.get("bloom_level") or "Understand"),
+        ))
 
 
 def _load_chunks(db: Session) -> None:

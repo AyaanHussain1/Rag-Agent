@@ -63,6 +63,39 @@ class RAGService:
         except Exception:
             self.client = None
 
+    def diagnose(self) -> dict:
+        """Make one real Gemini call so the key can be tested end to end.
+
+        Distinguishes: no key set, client not initialized (SDK missing/bad key
+        format), a live call that failed (raw provider error), and a working key.
+        """
+        info: dict = {
+            "api_key_present": bool(os.getenv("GOOGLE_API_KEY")),
+            "client_initialized": self.client is not None,
+            "model_name": self.model_name,
+        }
+        if not info["api_key_present"] and self.client is None:
+            info["status"] = "no_key"
+            info["detail"] = "GOOGLE_API_KEY is not set; the app runs in deterministic fallback mode."
+            return info
+        if self.client is None:
+            info["status"] = "client_unavailable"
+            info["detail"] = "Key is set but the Gemini client did not initialize (is 'google-genai' installed?)."
+            return info
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents="Reply with the single word: OK",
+            )
+            info["status"] = "ok"
+            info["sample_response"] = (getattr(response, "text", "") or "").strip()[:200]
+            info["detail"] = "Live Gemini call succeeded. The key is valid and authorized."
+        except Exception as exc:  # surface the raw provider error instead of swallowing it
+            info["status"] = "error"
+            info["error"] = f"{type(exc).__name__}: {exc}"[:600]
+            info["detail"] = "Key is set and client built, but the live Gemini call failed (see error)."
+        return info
+
     def retrieve(self, query: str, concept_id: str | None = None) -> dict:
         detected = concept_id or detect_concept_id(query)
         if detected not in SUPPORTED_CONCEPTS:

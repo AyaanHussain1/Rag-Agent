@@ -41,6 +41,25 @@ class Concept(Base):
     description: Mapped[str] = mapped_column(Text, default="")
 
 
+class SourceDocument(Base):
+    __tablename__ = "source_documents"
+
+    source_id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    file_name: Mapped[str] = mapped_column(String(200), default="")
+    verification_status: Mapped[str] = mapped_column(Text, default="")
+    concepts: Mapped[list] = mapped_column(JSON, default=list)
+
+
+class LearningOutcome(Base):
+    __tablename__ = "learning_outcomes"
+
+    outcome_id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    concept_id: Mapped[str] = mapped_column(String(20), ForeignKey("concepts.concept_id"))
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    bloom_level: Mapped[str] = mapped_column(String(40), default="Understand")
+
+
 class ContentChunk(Base):
     __tablename__ = "content_chunks"
 

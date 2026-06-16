@@ -34,6 +34,11 @@ def health() -> dict:
     return {"status": "ok", "service": "learnshift-ai", "rag_model": rag_service.model_name}
 
 
+@app.get("/api/diag/gemini")
+def diag_gemini() -> dict:
+    return rag_service.diagnose()
+
+
 @app.post("/api/demo/seed")
 def seed_demo(db: Session = Depends(get_db)) -> dict:
     return seed.seed_demo(db)

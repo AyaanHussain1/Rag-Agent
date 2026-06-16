@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCcw, Users } from "lucide-react";
+import { RefreshCcw, Sparkles, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { EducatorAlertCard } from "@/components/EducatorAlertCard";
@@ -27,11 +27,42 @@ type AILog = {
   safeguard_triggered: boolean;
 };
 
+type GeminiDiag = {
+  status: "ok" | "error" | "no_key" | "client_unavailable";
+  detail: string;
+  model_name: string;
+  api_key_present: boolean;
+  client_initialized: boolean;
+  sample_response?: string;
+  error?: string;
+};
+
 export default function EducatorPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [aiLogs, setAiLogs] = useState<AILog[]>([]);
   const [error, setError] = useState("");
+  const [gemini, setGemini] = useState<GeminiDiag | null>(null);
+  const [testingGemini, setTestingGemini] = useState(false);
+
+  async function testGemini() {
+    setTestingGemini(true);
+    setGemini(null);
+    try {
+      setGemini(await api<GeminiDiag>("/api/diag/gemini"));
+    } catch (err) {
+      setGemini({
+        status: "error",
+        detail: "Could not reach the diagnostic endpoint.",
+        model_name: "unknown",
+        api_key_present: false,
+        client_initialized: false,
+        error: err instanceof Error ? err.message : "request failed",
+      });
+    } finally {
+      setTestingGemini(false);
+    }
+  }
 
   async function load() {
     setError("");
@@ -68,8 +99,38 @@ export default function EducatorPage() {
           <h1 className="text-3xl font-semibold text-ink">Educator dashboard</h1>
           <p className="mt-2 text-sm text-slate-600">Analytics are calculated from stored prototype interactions.</p>
         </div>
-        <button className="btn" onClick={seedAndLoad}><RefreshCcw className="h-4 w-4" /> Seed demo data</button>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn" onClick={testGemini} disabled={testingGemini}>
+            <Sparkles className="h-4 w-4" /> {testingGemini ? "Testing Gemini..." : "Test Gemini key"}
+          </button>
+          <button className="btn" onClick={seedAndLoad}><RefreshCcw className="h-4 w-4" /> Seed demo data</button>
+        </div>
       </div>
+
+      {gemini && (
+        <div
+          className={`card mt-4 border ${
+            gemini.status === "ok"
+              ? "border-teal-300 bg-teal-50"
+              : gemini.status === "error"
+              ? "border-rose-300 bg-rose-50"
+              : "border-amber-300 bg-amber-50"
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">Gemini key test:</span>
+            <span className="badge">{gemini.status.toUpperCase()}</span>
+            <span className="badge">{gemini.model_name}</span>
+            <span className="badge">{gemini.api_key_present ? "key present" : "no key"}</span>
+            <span className="badge">{gemini.client_initialized ? "client ready" : "client not built"}</span>
+          </div>
+          <p className="mt-2 text-sm text-slate-700">{gemini.detail}</p>
+          {gemini.sample_response && (
+            <p className="mt-1 text-sm text-slate-600">Live response: <span className="font-mono">{gemini.sample_response}</span></p>
+          )}
+          {gemini.error && <p className="mt-1 text-sm font-mono text-rose-700">{gemini.error}</p>}
+        </div>
+      )}
 
       <section className="mt-6 grid gap-4 md:grid-cols-3">
         <div className="card"><p className="text-sm text-slate-500">Learners</p><p className="mt-2 text-3xl font-semibold">{overview.learner_count}</p></div>
