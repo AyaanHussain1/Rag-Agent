@@ -7,6 +7,7 @@ import { api, concepts, type LearnerProfile, type Question } from "@/lib/api";
 
 type NextResponse = { question: Question; why_selected: string; profile: LearnerProfile };
 type SubmitResponse = { correct?: boolean; feedback: string; safeguard?: boolean; profile: LearnerProfile };
+type HintResponse = { hint: string; hint_count: number; exhausted: boolean; profile: LearnerProfile };
 
 export default function AssessmentPage() {
   const { learnerId } = useParams<{ learnerId: string }>();
@@ -18,52 +19,74 @@ export default function AssessmentPage() {
   const [hintCount, setHintCount] = useState(0);
   const [hints, setHints] = useState<string[]>([]);
   const [feedback, setFeedback] = useState("");
+  const [error, setError] = useState("");
+  const [hintLoading, setHintLoading] = useState(false);
   const [profile, setProfile] = useState<LearnerProfile | null>(null);
 
   async function nextQuestion() {
-    const response = await api<NextResponse>("/api/assessment/next", {
-      method: "POST",
-      body: JSON.stringify({ learner_id: learnerId, concept_id: conceptId || null })
-    });
-    setQuestion(response.question);
-    setWhy(response.why_selected);
-    setProfile(response.profile);
-    setAnswer("");
-    setFeedback("");
-    setHintCount(0);
-    setHints([]);
+    setError("");
+    try {
+      const response = await api<NextResponse>("/api/assessment/next", {
+        method: "POST",
+        body: JSON.stringify({ learner_id: learnerId, concept_id: conceptId || null })
+      });
+      setQuestion(response.question);
+      setWhy(response.why_selected);
+      setProfile(response.profile);
+      setAnswer("");
+      setFeedback("");
+      setHintCount(0);
+      setHints([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load the next question");
+    }
   }
 
   async function getHint() {
     if (!question || hintCount >= 3) return;
-    const response = await api<{ hint: string; hint_count: number }>("/api/hints/next", {
-      method: "POST",
-      body: JSON.stringify({ learner_id: learnerId, question_id: question.question_id, current_hint_count: hintCount })
-    });
-    setHintCount(response.hint_count);
-    setHints((prev) => [...prev, response.hint]);
+    setError("");
+    setHintLoading(true);
+    try {
+      const response = await api<HintResponse>("/api/hints/next", {
+        method: "POST",
+        body: JSON.stringify({ learner_id: learnerId, question_id: question.question_id, current_hint_count: hintCount })
+      });
+      setHintCount(response.hint_count);
+      setHints((prev) => [...prev, response.hint]);
+      setProfile(response.profile);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load a hint");
+    } finally {
+      setHintLoading(false);
+    }
   }
 
   async function submit() {
     if (!question) return;
-    const response = await api<SubmitResponse>("/api/assessment/submit", {
-      method: "POST",
-      body: JSON.stringify({
-        learner_id: learnerId,
-        question_id: question.question_id,
-        learner_answer: answer,
-        confidence,
-        hints_used: hintCount
-      })
-    });
-    setFeedback(response.feedback);
-    setProfile(response.profile);
+    setError("");
+    try {
+      const response = await api<SubmitResponse>("/api/assessment/submit", {
+        method: "POST",
+        body: JSON.stringify({
+          learner_id: learnerId,
+          question_id: question.question_id,
+          learner_answer: answer,
+          confidence,
+          hints_used: hintCount
+        })
+      });
+      setFeedback(response.feedback);
+      setProfile(response.profile);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not submit the answer");
+    }
   }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-3xl font-semibold text-ink">Adaptive assessment</h1>
       <p className="mt-2 text-sm text-slate-600">Questions respond to repeated errors, confidence, hint usage, and strong mastery.</p>
+      {error && <div className="mt-4 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
 
       <section className="mt-6 grid gap-5 lg:grid-cols-[0.78fr_1.22fr]">
         <div className="card">
@@ -102,7 +125,9 @@ export default function AssessmentPage() {
                 <input className="mt-2 w-full" type="range" min={1} max={5} value={confidence} onChange={(event) => setConfidence(Number(event.target.value))} />
               </label>
               <div className="mt-4 flex flex-wrap gap-2">
-                <button className="btn" onClick={getHint} disabled={hintCount >= 3}><HelpCircle className="h-4 w-4" /> Hint {hintCount}/3</button>
+                <button className="btn" onClick={getHint} disabled={hintLoading || hintCount >= 3}>
+                  <HelpCircle className="h-4 w-4" /> {hintLoading ? "Loading hint..." : `Hint ${hintCount}/3`}
+                </button>
                 <button className="btn btn-primary" onClick={submit}><Send className="h-4 w-4" /> Submit answer</button>
               </div>
               {hints.length > 0 && (

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from . import adaptive, models
@@ -181,6 +181,12 @@ def _hint(concept_id: str, level: int) -> str:
 
 
 def ensure_seeded(db: Session) -> None:
-    has_concepts = db.scalar(select(models.Concept).limit(1))
-    if not has_concepts:
+    concept_count = db.scalar(select(func.count()).select_from(models.Concept))
+    question_count = db.scalar(select(func.count()).select_from(models.Question))
+    hint_ladder_count = db.scalar(select(func.count()).select_from(models.HintLadder))
+    if (
+        (concept_count or 0) < len(adaptive.CONCEPTS)
+        or (question_count or 0) < len(QUESTIONS)
+        or (hint_ladder_count or 0) < len(QUESTIONS)
+    ):
         seed_reference_data(db)

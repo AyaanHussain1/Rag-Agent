@@ -190,6 +190,7 @@ def tutor_confusion(payload: schemas.TutorConfusionRequest, db: Session = Depend
 
 @app.post("/api/assessment/next")
 def assessment_next(payload: schemas.AssessmentNextRequest, db: Session = Depends(get_db)) -> dict:
+    seed.ensure_seeded(db)
     learner = require_learner(db, payload.learner_id)
     question, reason = adaptive.choose_question(db, learner, payload.concept_id)
     return {"question": question_payload(question, hide_answer=True), "why_selected": reason, "profile": adaptive.profile_payload(db, learner)}
@@ -253,10 +254,14 @@ def assessment_submit(payload: schemas.AssessmentSubmitRequest, db: Session = De
 
 @app.post("/api/hints/next")
 def hints_next(payload: schemas.HintNextRequest, db: Session = Depends(get_db)) -> dict:
+    seed.ensure_seeded(db)
     learner = require_learner(db, payload.learner_id)
     question = require_question(db, payload.question_id)
     ladder = db.get(models.HintLadder, payload.question_id)
     next_count = min(payload.current_hint_count + 1, 3)
+    if not ladder:
+        seed.seed_reference_data(db)
+        ladder = db.get(models.HintLadder, payload.question_id)
     if not ladder:
         raise HTTPException(status_code=404, detail="No hint ladder found for this question")
     hint = getattr(ladder, f"hint_step_{next_count}")
@@ -273,7 +278,7 @@ def hints_next(payload: schemas.HintNextRequest, db: Session = Depends(get_db)) 
         evidence_summary=f"Hint {next_count} requested; later correct answers will receive a smaller mastery gain.",
     ))
     db.commit()
-    return {"hint": hint, "hint_count": next_count, "exhausted": next_count >= 3}
+    return {"hint": hint, "hint_count": next_count, "exhausted": next_count >= 3, "profile": adaptive.profile_payload(db, learner)}
 
 
 @app.get("/api/educator/overview")
