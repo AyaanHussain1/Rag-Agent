@@ -1,0 +1,4 @@
+question_id,concept_id,hint_step_1,hint_step_2,hint_step_3
+Q001,C001,Remember that a class is a blueprint. What do we call an instance created from that blueprint?,Look closely at the syntax used to instantiate a class in Python.,Check if you forgot to use parentheses () when creating the object.
+Q002,C002,Think about access specifiers. Which keyword restricts access completely to the internal class?,Private attributes in Python start with a double underscore (__).,Verify if you are trying to access a private attribute directly from outside the class.
+Q025,C005,Recall what super() does. It allows you to call a method from the base class.,"If a child class overrides a parent method, super().describe() invokes the parent version first.",Check if your method signature matches the parent class exactly.

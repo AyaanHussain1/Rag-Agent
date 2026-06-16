@@ -1,0 +1,4 @@
+concept_id,concept_name,description
+C001,Classes and Objects,The foundation of OOP involving blueprints and instances.
+C002,Encapsulation,Restricting direct access to data using public and private modifiers.
+C005,Inheritance and Polymorphism,Overriding parent class methods and utilizing dynamic execution paths.

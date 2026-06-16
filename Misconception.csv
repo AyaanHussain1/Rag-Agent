@@ -1,0 +1,4 @@
+misconception_id,concept_id,misconception_description,learner_response_example,recommended_intervention
+M001,C001,Confusing a class definition with an instantiated object,A class allocates memory for variables before you use the object.,Clarify that a class is just a design pattern; memory is only allocated when an instance (object) is created.
+M005,C002,Believing private attributes are truly secure and inaccessible outside Python,Private variables cannot be touched at all from outside the file.,Explain Python name mangling (_ClassName__attribute) and how it handles private boundaries.
+M009,C005,Confusing method overriding with method overloading,Overriding happens when you have two methods with different parameters in the same class.,"Remind the learner that overriding replaces a parent method in a child class, while overloading uses different signatures in the same class."
