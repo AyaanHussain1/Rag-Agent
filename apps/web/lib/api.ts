@@ -7,6 +7,8 @@ export type AuthUser = {
   name: string;
   role: "learner" | "educator";
   learner_id?: string | null;
+  diagnostic_completed?: boolean | null;
+  diagnostic_completed_at?: string | null;
 };
 
 export type AuthResponse = {
@@ -27,6 +29,9 @@ export type LearnerProfile = {
   current_level: string;
   recommended_concept_id: string;
   overall_mastery: number;
+  diagnostic_completed: boolean;
+  diagnostic_completed_at?: string | null;
+  recommended_next_action: string;
   concept_mastery: Record<string, ConceptMastery>;
   weak_concepts: ConceptMastery[];
   developing_concepts: ConceptMastery[];
@@ -151,6 +156,11 @@ export async function getCurrentUser() {
 }
 
 export const authenticatedFetch = api;
+
+export function learnerHome(user: AuthUser) {
+  if (user.role !== "learner" || !user.learner_id) return "/learner";
+  return user.diagnostic_completed ? `/learner/${user.learner_id}/dashboard` : `/learner/${user.learner_id}/diagnostic`;
+}
 
 export function labelClass(label: string) {
   if (label === "Mastered") return "bg-emerald-50 text-emerald-700 border-emerald-200";

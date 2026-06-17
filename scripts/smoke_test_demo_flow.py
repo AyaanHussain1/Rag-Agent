@@ -37,12 +37,16 @@ def main() -> int:
     learner_token = call("POST", "/api/auth/login", {"email": "beginner@learnshift.ai", "password": "password123"})["access_token"]
     educator_token = call("POST", "/api/auth/login", {"email": "educator@learnshift.ai", "password": "password123"})["access_token"]
 
+    me = call("GET", "/api/auth/me", token=learner_token)
+    assert me["role"] == "learner" and me["learner_id"] == "demo_beginner"
+    assert me["diagnostic_completed"] is False, "demo beginner should require first-login diagnostic"
     learners = call("GET", "/api/learners", token=learner_token)
-    assert len(learners) >= 5, "expected at least 5 learners"
+    assert len(learners) == 1 and learners[0]["learner_id"] == "demo_beginner", "learner should only see their own profile"
     beginner = "demo_beginner"
     advanced = "demo_advanced"
-    profile = call("GET", f"/api/learners/{beginner}/profile", token=learner_token)
-    assert profile["learner_id"] == beginner
+    call("GET", f"/api/learners/{beginner}/profile", token=learner_token, expected_status=403)
+    call("GET", f"/api/learners/{advanced}/profile", token=learner_token, expected_status=403)
+    call("POST", "/api/teach", {"learner_id": beginner, "concept_id": "C005"}, token=learner_token, expected_status=403)
 
     diagnostic = call("POST", "/api/diagnostic/start", token=learner_token)
     answers = [
@@ -50,9 +54,14 @@ def main() -> int:
         for q in diagnostic["questions"]
     ]
     call("POST", "/api/diagnostic/submit", {"learner_id": beginner, "answers": answers}, token=learner_token)
+    me = call("GET", "/api/auth/me", token=learner_token)
+    assert me["diagnostic_completed"] is True and me["diagnostic_completed_at"], "diagnostic submit should mark completion"
+    profile = call("GET", f"/api/learners/{beginner}/profile", token=learner_token)
+    assert profile["learner_id"] == beginner and profile["diagnostic_completed"] is True
 
     teach_beginner = call("POST", "/api/teach", {"learner_id": beginner, "concept_id": "C005"}, token=learner_token)
-    teach_advanced = call("POST", "/api/teach", {"learner_id": advanced, "concept_id": "C005"}, token=learner_token)
+    call("POST", "/api/teach", {"learner_id": advanced, "concept_id": "C005"}, token=learner_token, expected_status=403)
+    teach_advanced = call("POST", "/api/teach", {"learner_id": advanced, "concept_id": "C005"}, token=educator_token)
     assert teach_beginner.get("teaching_action") != teach_advanced.get("teaching_action"), "teaching actions should differ"
 
     next_question = call("POST", "/api/assessment/next", {"learner_id": beginner, "concept_id": "C005"}, token=learner_token)

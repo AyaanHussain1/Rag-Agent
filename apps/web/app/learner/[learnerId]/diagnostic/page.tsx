@@ -9,8 +9,8 @@ import { api, type Question } from "@/lib/api";
 type AnswerState = Record<string, { learner_answer: string; confidence: number; started: number }>;
 
 export default function DiagnosticPage() {
-  const auth = useRequireAuth();
   const { learnerId } = useParams<{ learnerId: string }>();
+  const auth = useRequireAuth("learner", { learnerId, allowIncompleteDiagnostic: true });
   const router = useRouter();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<AnswerState>({});
@@ -18,7 +18,7 @@ export default function DiagnosticPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (auth.loading || !auth.user) return;
+    if (auth.loading || auth.user?.role !== "learner" || auth.user.learner_id !== learnerId) return;
     api<{ questions: Question[] }>("/api/diagnostic/start", { method: "POST" })
       .then((data) => {
         setQuestions(data.questions);
@@ -45,6 +45,7 @@ export default function DiagnosticPage() {
     };
     try {
       const response = await api<{ starting_concept_id: string }>("/api/diagnostic/submit", { method: "POST", body: JSON.stringify(payload) });
+      await auth.refreshUser();
       setResult(`Diagnostic saved. Recommended starting concept: ${response.starting_concept_id}`);
       setTimeout(() => router.push(`/learner/${learnerId}/dashboard`), 900);
     } catch (err) {
@@ -57,7 +58,8 @@ export default function DiagnosticPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-3xl font-semibold text-ink">Initial diagnostic</h1>
-      <p className="mt-2 text-sm text-slate-600">Answer six Java OOP questions. Confidence affects mastery updates.</p>
+      <p className="mt-2 text-sm text-slate-600">Before we personalize your learning path, complete this short diagnostic.</p>
+      <p className="mt-1 text-sm text-slate-600">Answer six Java OOP questions. Confidence affects mastery updates.</p>
       {error && <div className="mt-4 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
       {result && <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{result}</div>}
 

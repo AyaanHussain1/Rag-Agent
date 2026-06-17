@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { register } from "@/lib/api";
+import { learnerHome, register } from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function RegisterPage() {
     try {
       const user = await register(name, email, password, role);
       await refreshUser();
-      router.push(user.role === "educator" ? "/educator" : user.learner_id ? `/learner/${user.learner_id}/diagnostic` : "/learner");
+      router.push(user.role === "educator" ? "/educator" : learnerHome(user));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {

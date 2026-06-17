@@ -25,6 +25,8 @@ class CurrentUserResponse(BaseModel):
     name: str
     role: str
     learner_id: str | None = None
+    diagnostic_completed: bool | None = None
+    diagnostic_completed_at: str | None = None
 
 
 class LearnerCreate(BaseModel):

@@ -25,14 +25,15 @@ type TutorResponse = {
 };
 
 export default function TutorPage() {
-  const auth = useRequireAuth();
   const { learnerId } = useParams<{ learnerId: string }>();
+  const auth = useRequireAuth("learner", { learnerId });
   const [message, setMessage] = useState("I think overriding is when the same class has two methods with different parameters.");
   const [confidence, setConfidence] = useState(2);
   const [result, setResult] = useState<TutorResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function submit() {
+    if (auth.user?.learner_id !== learnerId || !auth.user.diagnostic_completed) return;
     setLoading(true);
     try {
       setResult(await api<TutorResponse>("/api/tutor/confusion", {

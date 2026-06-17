@@ -25,6 +25,8 @@ class Learner(Base):
     detected_misconceptions: Mapped[list] = mapped_column(JSON, default=list)
     last_action_reason: Mapped[str] = mapped_column(Text, default="")
     next_recommendation: Mapped[str] = mapped_column(Text, default="")
+    diagnostic_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    diagnostic_completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -43,6 +45,8 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="learner")
     learner_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("learners.learner_id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    learner: Mapped[Learner | None] = relationship()
 
 
 class Concept(Base):

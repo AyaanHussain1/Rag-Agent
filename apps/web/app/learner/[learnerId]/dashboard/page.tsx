@@ -11,13 +11,13 @@ import { useRequireAuth } from "@/components/AuthProvider";
 import { api, type LearnerProfile } from "@/lib/api";
 
 export default function LearnerDashboard() {
-  const auth = useRequireAuth();
   const { learnerId } = useParams<{ learnerId: string }>();
+  const auth = useRequireAuth("learner", { learnerId });
   const [profile, setProfile] = useState<LearnerProfile | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (auth.loading || !auth.user) return;
+    if (auth.loading || auth.user?.role !== "learner" || auth.user.learner_id !== learnerId || !auth.user.diagnostic_completed) return;
     api<LearnerProfile>(`/api/learners/${learnerId}/profile`)
       .then(setProfile)
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load profile"));

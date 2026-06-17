@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -55,6 +56,8 @@ def seed_demo(db: Session) -> dict:
             display_name=str(row["display_name"]),
             current_level=str(row["current_level"]).upper(),
             is_demo=_bool(row.get("is_demo", True)),
+            diagnostic_completed=False,
+            diagnostic_completed_at=None,
         )
         db.add(learner)
         db.flush()
@@ -110,6 +113,13 @@ def seed_demo(db: Session) -> dict:
                     "source_grounding_used": str(row["interaction_type"]) != "assessment_safeguard",
                 },
             ))
+
+    diagnostic_evidence = {str(row["learner_id"]) for _, row in interaction_rows.iterrows() if str(row["interaction_type"]) == "diagnostic"}
+    for learner_id, learner in learners.items():
+        learner.diagnostic_completed = learner_id in diagnostic_evidence
+        learner.diagnostic_completed_at = datetime.utcnow() if learner.diagnostic_completed else None
+    learners["demo_beginner"].diagnostic_completed = False
+    learners["demo_beginner"].diagnostic_completed_at = None
 
     db.add(models.AIUsageLog(
         learner_id=None,

@@ -137,6 +137,8 @@ def profile_payload(db: Session, learner: models.Learner) -> dict:
         "current_level": learner.current_level,
         "recommended_concept_id": learner.recommended_concept_id,
         "overall_mastery": round(mean(scores), 1),
+        "diagnostic_completed": learner.diagnostic_completed,
+        "diagnostic_completed_at": learner.diagnostic_completed_at.isoformat() if learner.diagnostic_completed_at else None,
         "concept_mastery": mastery,
         "weak_concepts": weak,
         "developing_concepts": developing,
@@ -148,6 +150,7 @@ def profile_payload(db: Session, learner: models.Learner) -> dict:
         "detected_misconceptions": learner.detected_misconceptions or [],
         "last_action_reason": learner.last_action_reason,
         "next_recommendation": learner.next_recommendation,
+        "recommended_next_action": learner.next_recommendation,
         "updated_at": learner.updated_at.isoformat() if learner.updated_at else None,
     }
 

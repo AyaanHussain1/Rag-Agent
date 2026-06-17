@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { clearStoredToken, getCurrentUser, getStoredToken, logout as apiLogout, type AuthUser } from "@/lib/api";
+import { clearStoredToken, getCurrentUser, getStoredToken, learnerHome, logout as apiLogout, type AuthUser } from "@/lib/api";
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -57,10 +57,16 @@ export function useAuth() {
   return context;
 }
 
-export function useRequireAuth(role?: "learner" | "educator") {
+type RequireAuthOptions = {
+  allowIncompleteDiagnostic?: boolean;
+  learnerId?: string;
+};
+
+export function useRequireAuth(role?: "learner" | "educator", options: RequireAuthOptions = {}) {
   const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { allowIncompleteDiagnostic = false, learnerId } = options;
 
   useEffect(() => {
     if (auth.loading) return;
@@ -70,8 +76,22 @@ export function useRequireAuth(role?: "learner" | "educator") {
     }
     if (role && auth.user.role !== role) {
       router.replace(auth.user.role === "educator" ? "/educator" : "/learner");
+      return;
     }
-  }, [auth.loading, auth.user, pathname, role, router]);
+    if (auth.user.role === "learner") {
+      if (!auth.user.learner_id) {
+        router.replace("/learner");
+        return;
+      }
+      if (learnerId && learnerId !== auth.user.learner_id) {
+        router.replace(learnerHome(auth.user));
+        return;
+      }
+      if (!allowIncompleteDiagnostic && !auth.user.diagnostic_completed) {
+        router.replace(`/learner/${auth.user.learner_id}/diagnostic`);
+      }
+    }
+  }, [allowIncompleteDiagnostic, auth.loading, auth.user, learnerId, pathname, role, router]);
 
   return auth;
 }

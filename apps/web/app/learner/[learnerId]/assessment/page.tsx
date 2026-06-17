@@ -11,8 +11,8 @@ type SubmitResponse = { correct?: boolean; feedback: string; safeguard?: boolean
 type HintResponse = { hint: string; hint_count: number; exhausted: boolean; profile: LearnerProfile };
 
 export default function AssessmentPage() {
-  const auth = useRequireAuth();
   const { learnerId } = useParams<{ learnerId: string }>();
+  const auth = useRequireAuth("learner", { learnerId });
   const [conceptId, setConceptId] = useState("");
   const [question, setQuestion] = useState<Question | null>(null);
   const [why, setWhy] = useState("");
@@ -28,6 +28,7 @@ export default function AssessmentPage() {
   const [profile, setProfile] = useState<LearnerProfile | null>(null);
 
   async function nextQuestion() {
+    if (auth.user?.learner_id !== learnerId || !auth.user.diagnostic_completed) return;
     setError("");
     try {
       const response = await api<NextResponse>("/api/assessment/next", {
@@ -49,6 +50,7 @@ export default function AssessmentPage() {
   }
 
   async function getHint() {
+    if (auth.user?.learner_id !== learnerId || !auth.user.diagnostic_completed) return;
     if (!question || hintCount >= 3) return;
     setError("");
     setHintLoading(true);
@@ -68,6 +70,7 @@ export default function AssessmentPage() {
   }
 
   async function submit() {
+    if (auth.user?.learner_id !== learnerId || !auth.user.diagnostic_completed) return;
     if (!question) return;
     setError("");
     try {

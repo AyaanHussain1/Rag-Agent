@@ -20,8 +20,8 @@ type TeachResponse = {
 };
 
 export default function LearnPage() {
-  const auth = useRequireAuth();
   const { learnerId } = useParams<{ learnerId: string }>();
+  const auth = useRequireAuth("learner", { learnerId });
   const [profile, setProfile] = useState<LearnerProfile | null>(null);
   const [conceptId, setConceptId] = useState("C001");
   const [action, setAction] = useState("");
@@ -29,7 +29,7 @@ export default function LearnPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (auth.loading || !auth.user) return;
+    if (auth.loading || auth.user?.role !== "learner" || auth.user.learner_id !== learnerId || !auth.user.diagnostic_completed) return;
     api<LearnerProfile>(`/api/learners/${learnerId}/profile`).then((data) => {
       setProfile(data);
       setConceptId(data.recommended_concept_id || "C001");

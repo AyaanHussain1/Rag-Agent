@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { login } from "@/lib/api";
+import { learnerHome, login } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,8 +23,7 @@ export default function LoginPage() {
       const user = await login(email, password);
       await refreshUser();
       const params = new URLSearchParams(window.location.search);
-      const learnerHome = user.learner_id ? `/learner/${user.learner_id}/dashboard` : "/learner";
-      router.push(params.get("next") || (user.role === "educator" ? "/educator" : learnerHome));
+      router.push(params.get("next") || (user.role === "educator" ? "/educator" : learnerHome(user)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

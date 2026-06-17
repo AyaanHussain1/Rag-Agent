@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
@@ -99,8 +101,10 @@ def logout() -> dict:
 def create_learner(
     payload: schemas.LearnerCreate,
     db: Session = Depends(get_db),
-    _: models.User = Depends(require_role("learner", "educator")),
+    current_user: models.User = Depends(require_role("learner", "educator")),
 ) -> dict:
+    if current_user.role == "learner" and current_user.learner_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Learner account already has a linked profile")
     seed.ensure_seeded(db)
     learner = models.Learner(display_name=payload.display_name, current_level=payload.current_level.upper())
     db.add(learner)
@@ -108,6 +112,8 @@ def create_learner(
     adaptive.ensure_mastery_records(db, learner)
     learner.recommended_concept_id = "C001"
     learner.next_recommendation = "Start with the diagnostic or review Classes and Objects."
+    if current_user.role == "learner":
+        current_user.learner_id = learner.learner_id
     db.commit()
     db.refresh(learner)
     return learner_payload(db, learner)
@@ -116,10 +122,15 @@ def create_learner(
 @app.get("/api/learners")
 def list_learners(
     db: Session = Depends(get_db),
-    _: models.User = Depends(require_role("learner", "educator")),
+    current_user: models.User = Depends(require_role("learner", "educator")),
 ) -> list[dict]:
     seed.ensure_seeded(db)
-    learners = db.scalars(select(models.Learner).order_by(models.Learner.created_at.desc())).all()
+    if current_user.role == "learner":
+        if not current_user.learner_id:
+            return []
+        learners = [require_learner_for_user(db, current_user.learner_id, current_user)]
+    else:
+        learners = db.scalars(select(models.Learner).order_by(models.Learner.created_at.desc())).all()
     return [learner_payload(db, learner) for learner in learners]
 
 
@@ -127,9 +138,9 @@ def list_learners(
 def get_learner(
     learner_id: str,
     db: Session = Depends(get_db),
-    _: models.User = Depends(require_role("learner", "educator")),
+    current_user: models.User = Depends(require_role("learner", "educator")),
 ) -> dict:
-    learner = require_learner(db, learner_id)
+    learner = require_learner_for_user(db, learner_id, current_user)
     return learner_payload(db, learner)
 
 
@@ -137,9 +148,9 @@ def get_learner(
 def get_profile(
     learner_id: str,
     db: Session = Depends(get_db),
-    _: models.User = Depends(require_role("learner", "educator")),
+    current_user: models.User = Depends(require_role("learner", "educator")),
 ) -> dict:
-    learner = require_learner(db, learner_id)
+    learner = require_learner_for_user(db, learner_id, current_user, require_diagnostic=True)
     return adaptive.profile_payload(db, learner) | {"recent_interactions": recent_interactions(db, learner_id)}
 
 
@@ -159,9 +170,9 @@ def diagnostic_start(
 def diagnostic_submit(
     payload: schemas.DiagnosticSubmit,
     db: Session = Depends(get_db),
-    _: models.User = Depends(require_role("learner", "educator")),
+    current_user: models.User = Depends(require_role("learner", "educator")),
 ) -> dict:
-    learner = require_learner(db, payload.learner_id)
+    learner = require_learner_for_user(db, payload.learner_id, current_user)
     results = []
     for answer in payload.answers:
         question = require_question(db, answer.question_id)
@@ -183,6 +194,8 @@ def diagnostic_submit(
             {"time_spent_seconds": answer.time_spent_seconds},
         )
         results.append({"question_id": question.question_id, "correct": correct, "feedback": feedback})
+    learner.diagnostic_completed = True
+    learner.diagnostic_completed_at = datetime.utcnow()
     db.commit()
     profile = adaptive.profile_payload(db, learner)
     return {"results": results, "profile": profile, "starting_concept_id": profile["recommended_concept_id"]}
@@ -192,16 +205,22 @@ def diagnostic_submit(
 def rag_answer(
     payload: schemas.RAGAnswerRequest,
     db: Session = Depends(get_db),
-    _: models.User = Depends(require_role("learner", "educator")),
+    current_user: models.User = Depends(require_role("learner", "educator")),
 ) -> dict:
     learner_level = "INTERMEDIATE"
+    learner_id_for_log = payload.learner_id
     if payload.learner_id:
-        learner = db.get(models.Learner, payload.learner_id)
-        if learner:
-            learner_level = learner.current_level
+        learner = require_learner_for_user(db, payload.learner_id, current_user, require_diagnostic=True)
+        learner_level = learner.current_level
+    elif current_user.role == "learner":
+        if not current_user.learner_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Learner account has no linked profile")
+        learner = require_learner_for_user(db, current_user.learner_id, current_user, require_diagnostic=True)
+        learner_level = learner.current_level
+        learner_id_for_log = learner.learner_id
     result = rag_service.answer(payload.question, learner_level)
     db.add(models.AIUsageLog(
-        learner_id=payload.learner_id,
+        learner_id=learner_id_for_log,
         endpoint="/api/rag/answer",
         model_name=result.get("model_name", rag_service.model_name),
         prompt_summary=payload.question[:300],
@@ -219,9 +238,9 @@ def rag_answer(
 def teach(
     payload: schemas.TeachRequest,
     db: Session = Depends(get_db),
-    _: models.User = Depends(require_role("learner", "educator")),
+    current_user: models.User = Depends(require_role("learner", "educator")),
 ) -> dict:
-    learner = require_learner(db, payload.learner_id)
+    learner = require_learner_for_user(db, payload.learner_id, current_user, require_diagnostic=True)
     concept_id = payload.concept_id or adaptive.profile_payload(db, learner)["recommended_concept_id"]
     action, reason, rule_id = (payload.action, "Learner manually selected this teaching action.", "MANUAL") if payload.action else adaptive.select_teaching_action(db, learner.learner_id, concept_id)
     result = rag_service.teach(concept_id, action, learner.current_level, reason)
@@ -265,9 +284,9 @@ def teach(
 def tutor_confusion(
     payload: schemas.TutorConfusionRequest,
     db: Session = Depends(get_db),
-    _: models.User = Depends(require_role("learner", "educator")),
+    current_user: models.User = Depends(require_role("learner", "educator")),
 ) -> dict:
-    learner = require_learner(db, payload.learner_id)
+    learner = require_learner_for_user(db, payload.learner_id, current_user, require_diagnostic=True)
     concept_id = adaptive.detect_concept_id(payload.message, learner.recommended_concept_id) or "C001"
     misconception = best_misconception(db, concept_id, payload.message)
     _, rule_reason, rule_id = adaptive.select_teaching_action(db, learner.learner_id, concept_id)
@@ -314,10 +333,10 @@ def tutor_confusion(
 def assessment_next(
     payload: schemas.AssessmentNextRequest,
     db: Session = Depends(get_db),
-    _: models.User = Depends(require_role("learner", "educator")),
+    current_user: models.User = Depends(require_role("learner", "educator")),
 ) -> dict:
     seed.ensure_seeded(db)
-    learner = require_learner(db, payload.learner_id)
+    learner = require_learner_for_user(db, payload.learner_id, current_user, require_diagnostic=True)
     question, reason, rule_id = adaptive.choose_question(db, learner, payload.concept_id)
     return {"question": question_payload(question, hide_answer=True), "why_selected": reason, "matched_adaptation_rule_id": rule_id, "profile": adaptive.profile_payload(db, learner)}
 
@@ -326,9 +345,9 @@ def assessment_next(
 def assessment_submit(
     payload: schemas.AssessmentSubmitRequest,
     db: Session = Depends(get_db),
-    _: models.User = Depends(require_role("learner", "educator")),
+    current_user: models.User = Depends(require_role("learner", "educator")),
 ) -> dict:
-    learner = require_learner(db, payload.learner_id)
+    learner = require_learner_for_user(db, payload.learner_id, current_user, require_diagnostic=True)
     question = require_question(db, payload.question_id)
     if adaptive.safeguard_direct_answer_request(payload.learner_answer):
         message = "I cannot give the final answer during assessment. I can offer a hint or guide you through the first step."
@@ -393,10 +412,10 @@ def assessment_submit(
 def hints_next(
     payload: schemas.HintNextRequest,
     db: Session = Depends(get_db),
-    _: models.User = Depends(require_role("learner", "educator")),
+    current_user: models.User = Depends(require_role("learner", "educator")),
 ) -> dict:
     seed.ensure_seeded(db)
-    learner = require_learner(db, payload.learner_id)
+    learner = require_learner_for_user(db, payload.learner_id, current_user, require_diagnostic=True)
     question = require_question(db, payload.question_id)
     ladder = db.get(models.HintLadder, payload.question_id)
     next_count = min(payload.current_hint_count + 1, 3)
@@ -476,6 +495,20 @@ def require_learner(db: Session, learner_id: str) -> models.Learner:
     return learner
 
 
+def require_learner_for_user(
+    db: Session,
+    learner_id: str,
+    current_user: models.User,
+    require_diagnostic: bool = False,
+) -> models.Learner:
+    if current_user.role == "learner" and current_user.learner_id != learner_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Learners can only access their own profile")
+    learner = require_learner(db, learner_id)
+    if require_diagnostic and current_user.role == "learner" and not learner.diagnostic_completed:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Initial diagnostic must be completed first")
+    return learner
+
+
 def require_question(db: Session, question_id: str) -> models.Question:
     question = db.get(models.Question, question_id)
     if not question:
@@ -491,18 +524,26 @@ def learner_payload(db: Session, learner: models.Learner) -> dict:
         "current_level": learner.current_level,
         "recommended_concept_id": learner.recommended_concept_id,
         "overall_mastery": profile["overall_mastery"],
+        "diagnostic_completed": learner.diagnostic_completed,
+        "diagnostic_completed_at": learner.diagnostic_completed_at.isoformat() if learner.diagnostic_completed_at else None,
+        "recommended_next_action": profile["next_recommendation"],
         "is_demo": learner.is_demo,
     }
 
 
 def user_payload(user: models.User) -> dict:
-    return {
+    payload = {
         "id": user.id,
         "email": user.email,
         "name": user.name,
         "role": user.role,
         "learner_id": user.learner_id,
     }
+    if user.learner_id:
+        learner = getattr(user, "learner", None)
+        payload["diagnostic_completed"] = bool(learner and learner.diagnostic_completed)
+        payload["diagnostic_completed_at"] = learner.diagnostic_completed_at.isoformat() if learner and learner.diagnostic_completed_at else None
+    return payload
 
 
 def question_payload(question: models.Question, hide_answer: bool = False) -> dict:
