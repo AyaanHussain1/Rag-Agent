@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useRequireAuth } from "@/components/AuthProvider";
+import { Skeleton } from "@/components/ui/skeleton";
 import { learnerHome } from "@/lib/api";
 
 export default function LearnerPage() {
@@ -15,5 +16,13 @@ export default function LearnerPage() {
     }
   }, [auth.loading, auth.user, router]);
 
-  return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Opening your learner dashboard...</div>;
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <Skeleton className="h-32 w-full" />
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <Skeleton className="h-28 w-full" />
+        <Skeleton className="h-28 w-full" />
+      </div>
+    </div>
+  );
 }

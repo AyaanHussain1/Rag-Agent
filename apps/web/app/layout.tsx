@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Navbar } from "@/components/Navbar";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,12 +11,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body>
-        <AuthProvider>
-          <Navbar />
-          <main>{children}</main>
-        </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <AuthProvider>
+            <Navbar />
+            <main className="min-h-[calc(100vh-4rem)]">{children}</main>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

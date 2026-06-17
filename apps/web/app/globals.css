@@ -2,41 +2,125 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
+@layer base {
+  :root {
+    --font-sans: "Inter", "Segoe UI", Arial, sans-serif;
+    --background: 210 40% 98%;
+    --foreground: 204 24% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 204 24% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 204 24% 12%;
+    --primary: 192 91% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 160 84% 39%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 22% 94%;
+    --muted-foreground: 211 14% 42%;
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 352 72% 49%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 21% 86%;
+    --input: 214 21% 86%;
+    --ring: 192 91% 36%;
+    --ink: 204 24% 12%;
+    --mist: 210 40% 98%;
+    --success: 160 84% 39%;
+    --warning: 36 88% 57%;
+    --radius: 0.5rem;
+    --gradient-app: radial-gradient(circle at top left, hsl(192 91% 90%), transparent 34%), linear-gradient(135deg, hsl(210 40% 98%) 0%, hsl(210 28% 95%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(192 91% 36%) 0%, hsl(262 83% 58%) 62%, hsl(160 84% 39%) 130%);
+    --gradient-panel: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 40% 97%) 100%);
+    color-scheme: light;
+  }
+
+  .dark {
+    --background: 225 49% 8%;
+    --foreground: 204 28% 94%;
+    --card: 226 44% 14%;
+    --card-foreground: 204 28% 94%;
+    --popover: 226 44% 14%;
+    --popover-foreground: 204 28% 94%;
+    --primary: 190 100% 50%;
+    --primary-foreground: 225 49% 8%;
+    --secondary: 162 100% 50%;
+    --secondary-foreground: 225 49% 8%;
+    --muted: 225 33% 18%;
+    --muted-foreground: 208 12% 66%;
+    --accent: 251 100% 68%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 352 68% 54%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 225 25% 25%;
+    --input: 225 25% 25%;
+    --ring: 190 100% 50%;
+    --ink: 204 28% 94%;
+    --mist: 225 49% 8%;
+    --success: 162 100% 50%;
+    --warning: 36 91% 61%;
+    --gradient-app: radial-gradient(circle at top left, hsl(190 100% 16%), transparent 34%), linear-gradient(135deg, hsl(225 49% 8%) 0%, hsl(226 44% 11%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(190 100% 35%) 0%, hsl(251 100% 68%) 58%, hsl(162 100% 35%) 130%);
+    --gradient-panel: linear-gradient(180deg, hsl(226 44% 14%) 0%, hsl(225 36% 12%) 100%);
+    color-scheme: dark;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--gradient-app);
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+  }
+
+  a {
+    color: inherit;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  button,
+  [role="button"],
+  [type="button"],
+  [type="submit"],
+  select,
+  summary {
+    cursor: pointer;
+  }
+
+  input,
+  textarea {
+    font: inherit;
+  }
 }
 
-body {
-  margin: 0;
-  background: #f5f7f9;
-  color: #172026;
-}
+@layer components {
+  .card {
+    @apply rounded-lg border border-border bg-card p-5 text-card-foreground shadow-sm shadow-slate-900/5 transition-all duration-200 hover:border-primary/40 hover:shadow-md hover:shadow-primary/10 dark:shadow-black/20 dark:hover:shadow-primary/10;
+  }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+  .btn {
+    @apply inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-input bg-card px-4 py-2 text-sm font-medium text-foreground transition-all duration-200 hover:scale-[1.01] hover:border-primary/60 hover:text-primary hover:shadow-md hover:shadow-primary/10 disabled:cursor-not-allowed disabled:scale-100 disabled:opacity-60 disabled:shadow-none;
+  }
 
-button, input, select, textarea {
-  font: inherit;
-}
+  .btn-primary {
+    @apply border-primary bg-primary text-primary-foreground hover:border-primary hover:bg-primary/90 hover:text-primary-foreground;
+  }
 
-.card {
-  @apply rounded-lg border border-slate-200 bg-white p-5 shadow-sm;
-}
+  .input {
+    @apply w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-ring/20;
+  }
 
-.btn {
-  @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition hover:border-teal-600 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-60;
-}
-
-.btn-primary {
-  @apply border-teal-700 bg-teal-700 text-white hover:border-teal-800 hover:bg-teal-800 hover:text-white;
-}
-
-.input {
-  @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100;
-}
-
-.badge {
-  @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700;
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground transition-all duration-200;
+  }
 }

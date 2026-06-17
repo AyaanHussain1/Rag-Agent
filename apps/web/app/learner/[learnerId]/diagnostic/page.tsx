@@ -1,9 +1,14 @@
 "use client";
 
-import { Send } from "lucide-react";
+import { AlertCircle, CheckCircle2, ClipboardList, LoaderCircle, Send } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useRequireAuth } from "@/components/AuthProvider";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { api, type Question } from "@/lib/api";
 
 type AnswerState = Record<string, { learner_answer: string; confidence: number; started: number }>;
@@ -16,9 +21,11 @@ export default function DiagnosticPage() {
   const [answers, setAnswers] = useState<AnswerState>({});
   const [result, setResult] = useState<string>("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (auth.loading || auth.user?.role !== "learner" || auth.user.learner_id !== learnerId) return;
+    setError("");
     api<{ questions: Question[] }>("/api/diagnostic/start", { method: "POST" })
       .then((data) => {
         setQuestions(data.questions);
@@ -26,7 +33,7 @@ export default function DiagnosticPage() {
         setAnswers(Object.fromEntries(data.questions.map((q) => [q.question_id, { learner_answer: "", confidence: 3, started: now }])));
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Could not start diagnostic"));
-  }, [auth.loading, auth.user]);
+  }, [auth.loading, auth.user, learnerId]);
 
   function update(questionId: string, field: "learner_answer" | "confidence", value: string | number) {
     setAnswers((prev) => ({ ...prev, [questionId]: { ...prev[questionId], [field]: value } }));
@@ -34,6 +41,7 @@ export default function DiagnosticPage() {
 
   async function submit() {
     setError("");
+    setSubmitting(true);
     const payload = {
       learner_id: learnerId,
       answers: questions.map((question) => ({
@@ -50,44 +58,128 @@ export default function DiagnosticPage() {
       setTimeout(() => router.push(`/learner/${learnerId}/dashboard`), 900);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not submit diagnostic");
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  if (auth.loading || !auth.user) return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Checking login...</div>;
+  if (auth.loading || !auth.user) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="mt-4 h-20 w-full" />
+        <div className="mt-6 grid gap-4">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-56 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-3xl font-semibold text-ink">Initial diagnostic</h1>
-      <p className="mt-2 text-sm text-slate-600">Before we personalize your learning path, complete this short diagnostic.</p>
-      <p className="mt-1 text-sm text-slate-600">Answer six Java OOP questions. Confidence affects mastery updates.</p>
-      {error && <div className="mt-4 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
-      {result && <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{result}</div>}
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-10">
+      <section className="rounded-lg border border-border bg-hero-gradient p-6 text-primary-foreground shadow-lg shadow-slate-900/10">
+        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium">
+              <ClipboardList className="h-3.5 w-3.5" />
+              Initial diagnostic
+            </span>
+            <h1 className="mt-4 text-3xl font-semibold tracking-normal sm:text-4xl">Map your Java OOP starting point</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-primary-foreground/80">
+              Answer each question and rate your confidence. LearnShift uses both signals to personalize your first learning path.
+            </p>
+          </div>
+          <div className="rounded-lg border border-white/20 bg-white/10 p-4 text-sm">
+            <p className="font-medium">{questions.length || 6} questions</p>
+            <p className="mt-1 text-primary-foreground/75">Confidence changes mastery updates.</p>
+          </div>
+        </div>
+      </section>
+
+      {error && (
+        <Alert variant="destructive" className="mt-5">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Diagnostic issue</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {result && (
+        <Alert className="mt-5 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+          <CheckCircle2 className="h-4 w-4" />
+          <AlertTitle>Saved</AlertTitle>
+          <AlertDescription>{result}</AlertDescription>
+        </Alert>
+      )}
 
       <div className="mt-6 space-y-4">
-        {questions.map((question, index) => (
-          <section key={question.question_id} className="card">
+        {!questions.length && !error
+          ? Array.from({ length: 4 }).map((_, index) => (
+              <Card key={index}>
+                <CardContent className="space-y-4 p-5">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </CardContent>
+              </Card>
+            ))
+          : questions.map((question, index) => (
+          <Card key={question.question_id} className="overflow-hidden">
+            <CardHeader className="border-b border-border bg-muted/30">
             <div className="flex flex-wrap items-center gap-2">
               <span className="badge">Question {index + 1}</span>
               <span className="badge">{question.concept_id}</span>
               <span className="badge">{question.difficulty}</span>
               <span className="badge">{question.question_type}</span>
             </div>
-            <p className="mt-3 font-medium text-slate-900">{question.prompt}</p>
+              <CardTitle className="text-lg leading-7">{question.prompt}</CardTitle>
+              <CardDescription>Use your own words when possible; short answers are fine.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-5">
             {question.options && (
-              <div className="mt-3 grid gap-2 text-sm text-slate-700">
-                {question.options.map((option) => <p key={option}>{option}</p>)}
+              <div className="grid gap-2 text-sm text-muted-foreground">
+                {question.options.map((option) => (
+                  <p key={option} className="rounded-md border border-border bg-background px-3 py-2">
+                    {option}
+                  </p>
+                ))}
               </div>
             )}
-            <textarea className="input mt-4 min-h-24" value={answers[question.question_id]?.learner_answer || ""} onChange={(event) => update(question.question_id, "learner_answer", event.target.value)} />
-            <label className="mt-3 block text-sm font-medium">
-              Confidence: {answers[question.question_id]?.confidence || 3}/5
-              <input className="mt-2 w-full" type="range" min={1} max={5} value={answers[question.question_id]?.confidence || 3} onChange={(event) => update(question.question_id, "confidence", Number(event.target.value))} />
+            <Textarea
+              className="mt-4"
+              placeholder="Type your answer..."
+              value={answers[question.question_id]?.learner_answer || ""}
+              disabled={submitting}
+              onChange={(event) => update(question.question_id, "learner_answer", event.target.value)}
+            />
+            <label className="mt-4 block text-sm font-medium text-foreground">
+              <span className="flex items-center justify-between">
+                <span>Confidence</span>
+                <span className="badge">{answers[question.question_id]?.confidence || 3}/5</span>
+              </span>
+              <input
+                className="mt-3 w-full accent-primary"
+                type="range"
+                min={1}
+                max={5}
+                value={answers[question.question_id]?.confidence || 3}
+                disabled={submitting}
+                onChange={(event) => update(question.question_id, "confidence", Number(event.target.value))}
+              />
             </label>
-          </section>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
-      <button className="btn btn-primary mt-6" onClick={submit}><Send className="h-4 w-4" /> Submit diagnostic</button>
+      <div className="sticky bottom-4 mt-6 flex justify-end">
+        <Button onClick={submit} disabled={submitting || !questions.length}>
+          {submitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          {submitting ? "Submitting..." : "Submit diagnostic"}
+        </Button>
+      </div>
     </div>
   );
 }

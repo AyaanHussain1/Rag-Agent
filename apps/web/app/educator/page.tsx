@@ -1,11 +1,16 @@
 "use client";
 
-import { RefreshCcw, Sparkles, Users } from "lucide-react";
+import { AlertCircle, Bell, Brain, Database, FileText, LoaderCircle, RefreshCcw, Sparkles, TrendingUp, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { EducatorAlertCard } from "@/components/EducatorAlertCard";
 import { MasteryProgressBar } from "@/components/MasteryProgressBar";
 import { useRequireAuth } from "@/components/AuthProvider";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
 
 type Overview = {
@@ -17,7 +22,7 @@ type Overview = {
   recommended_actions: string[];
 };
 
-type Alert = Parameters<typeof EducatorAlertCard>[0]["alert"];
+type EducatorAlert = Parameters<typeof EducatorAlertCard>[0]["alert"];
 type AILog = {
   log_id: string;
   timestamp: string;
@@ -38,14 +43,44 @@ type GeminiDiag = {
   error?: string;
 };
 
+function EducatorSkeleton() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <Skeleton className="h-40 w-full" />
+      <div className="mt-6 grid gap-4 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-28 w-full" />)}
+      </div>
+      <Skeleton className="mt-6 h-96 w-full" />
+    </div>
+  );
+}
+
+function AnalyticsCard({ icon: Icon, label, value, detail }: { icon: typeof Users; label: string; value: string; detail: string }) {
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-3 p-4">
+        <span className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Icon className="h-5 w-5" />
+        </span>
+        <div>
+          <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
+          <p className="mt-1 text-2xl font-semibold text-foreground">{value}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function EducatorPage() {
   const auth = useRequireAuth("educator");
   const [overview, setOverview] = useState<Overview | null>(null);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alerts, setAlerts] = useState<EducatorAlert[]>([]);
   const [aiLogs, setAiLogs] = useState<AILog[]>([]);
   const [error, setError] = useState("");
   const [gemini, setGemini] = useState<GeminiDiag | null>(null);
   const [testingGemini, setTestingGemini] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
   async function testGemini() {
     setTestingGemini(true);
@@ -59,7 +94,7 @@ export default function EducatorPage() {
         model_name: "unknown",
         api_key_present: false,
         client_initialized: false,
-        error: err instanceof Error ? err.message : "request failed",
+        error: err instanceof Error ? err.message : "request failed"
       });
     } finally {
       setTestingGemini(false);
@@ -71,7 +106,7 @@ export default function EducatorPage() {
     try {
       const [overviewData, alertData, aiLogData] = await Promise.all([
         api<Overview>("/api/educator/overview"),
-        api<Alert[]>("/api/educator/alerts"),
+        api<EducatorAlert[]>("/api/educator/alerts"),
         api<AILog[]>("/api/educator/ai-logs")
       ]);
       setOverview(overviewData);
@@ -83,131 +118,237 @@ export default function EducatorPage() {
   }
 
   async function seedAndLoad() {
-    await api("/api/demo/seed", { method: "POST" });
-    await load();
+    setSeeding(true);
+    try {
+      await api("/api/demo/seed", { method: "POST" });
+      await load();
+    } finally {
+      setSeeding(false);
+    }
   }
 
   useEffect(() => {
     if (!auth.loading && auth.user?.role === "educator") load();
   }, [auth.loading, auth.user]);
 
-  if (auth.loading || !auth.user || auth.user.role !== "educator") return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Checking educator access...</div>;
-  if (error) return <div className="mx-auto max-w-4xl px-4 py-8 text-rose-700">{error}</div>;
-  if (!overview) return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Loading educator dashboard...</div>;
+  if (auth.loading || !auth.user || auth.user.role !== "educator") return <EducatorSkeleton />;
+  if (error) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Could not load educator dashboard</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+  if (!overview) return <EducatorSkeleton />;
+
+  const weakConcepts = overview.concept_difficulty_summary.reduce((total, concept) => total + concept.weak_count, 0);
+  const groundedLogs = aiLogs.filter((log) => log.source_grounding_used).length;
+  const safeguardLogs = aiLogs.filter((log) => log.safeguard_triggered).length;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-semibold text-ink">Educator dashboard</h1>
-          <p className="mt-2 text-sm text-slate-600">Analytics are calculated from stored prototype interactions.</p>
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
+      <section className="rounded-lg border border-border bg-panel-gradient p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <span className="badge">Educator workspace</span>
+            <h1 className="mt-4 text-3xl font-semibold tracking-normal text-ink sm:text-4xl">Class analytics and intervention signals</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Analytics are calculated from stored prototype interactions, alerts, misconceptions, and AI usage logs.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={testGemini} disabled={testingGemini}>
+              {testingGemini ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {testingGemini ? "Testing..." : "Test Gemini key"}
+            </Button>
+            <Button variant="outline" onClick={seedAndLoad} disabled={seeding}>
+              {seeding ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+              {seeding ? "Seeding..." : "Seed demo data"}
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button className="btn" onClick={testGemini} disabled={testingGemini}>
-            <Sparkles className="h-4 w-4" /> {testingGemini ? "Testing Gemini..." : "Test Gemini key"}
-          </button>
-          <button className="btn" onClick={seedAndLoad}><RefreshCcw className="h-4 w-4" /> Seed demo data</button>
-        </div>
-      </div>
+      </section>
 
       {gemini && (
-        <div
-          className={`card mt-4 border ${
-            gemini.status === "ok"
-              ? "border-teal-300 bg-teal-50"
-              : gemini.status === "error"
-              ? "border-rose-300 bg-rose-50"
-              : "border-amber-300 bg-amber-50"
-          }`}
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold">Gemini key test:</span>
-            <span className="badge">{gemini.status.toUpperCase()}</span>
-            <span className="badge">{gemini.model_name}</span>
-            <span className="badge">{gemini.api_key_present ? "key present" : "no key"}</span>
-            <span className="badge">{gemini.client_initialized ? "client ready" : "client not built"}</span>
-          </div>
-          <p className="mt-2 text-sm text-slate-700">{gemini.detail}</p>
-          {gemini.sample_response && (
-            <p className="mt-1 text-sm text-slate-600">Live response: <span className="font-mono">{gemini.sample_response}</span></p>
-          )}
-          {gemini.error && <p className="mt-1 text-sm font-mono text-rose-700">{gemini.error}</p>}
-        </div>
+        <Alert className="mt-5">
+          <Sparkles className="h-4 w-4" />
+          <AlertTitle>Gemini key test: {gemini.status.toUpperCase()}</AlertTitle>
+          <AlertDescription>
+            {gemini.detail} / {gemini.model_name} / {gemini.api_key_present ? "key present" : "no key"} /{" "}
+            {gemini.client_initialized ? "client ready" : "client not built"}
+            {gemini.sample_response ? ` / ${gemini.sample_response}` : ""}
+            {gemini.error ? ` / ${gemini.error}` : ""}
+          </AlertDescription>
+        </Alert>
       )}
 
-      <section className="mt-6 grid gap-4 md:grid-cols-3">
-        <div className="card"><p className="text-sm text-slate-500">Learners</p><p className="mt-2 text-3xl font-semibold">{overview.learner_count}</p></div>
-        <div className="card md:col-span-2"><p className="mb-3 text-sm text-slate-500">Class mastery</p><MasteryProgressBar score={overview.overall_class_mastery} label={overview.overall_class_mastery >= 70 ? "Mastered" : overview.overall_class_mastery < 40 ? "Weak" : "Developing"} /></div>
+      <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <AnalyticsCard icon={Users} label="Learners" value={String(overview.learner_count)} detail="Profiles in demo cohort" />
+        <AnalyticsCard icon={TrendingUp} label="Class mastery" value={`${Math.round(overview.overall_class_mastery)}%`} detail="Average current mastery" />
+        <AnalyticsCard icon={Bell} label="Alerts" value={String(alerts.length)} detail="Active intervention signals" />
+        <AnalyticsCard icon={Brain} label="Weak signals" value={String(weakConcepts)} detail="Weak concept counts" />
       </section>
 
-      <section className="mt-6 grid gap-5 lg:grid-cols-[1fr_1fr]">
-        <div className="card">
-          <h2 className="font-semibold">Learners</h2>
-          <div className="mt-4 space-y-3">
-            {overview.learners.map((learner) => (
-              <Link key={learner.learner_id} href={`/educator/learners/${learner.learner_id}`} className="flex items-center justify-between rounded-lg border border-slate-200 p-4 hover:border-teal-500">
-                <span className="flex items-center gap-3">
-                  <Users className="h-5 w-5 text-teal-700" />
-                  <span>
-                    <span className="block font-medium">{learner.display_name}</span>
-                    <span className="text-xs text-slate-500">{learner.current_level} - {Math.round(learner.overall_mastery)}%</span>
-                  </span>
-                </span>
-                <span className="badge">Open</span>
-              </Link>
-            ))}
+      <Tabs defaultValue="analytics" className="mt-6">
+        <TabsList className="flex h-auto w-full flex-wrap justify-start">
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="learners">Learners</TabsTrigger>
+          <TabsTrigger value="alerts">Alerts</TabsTrigger>
+          <TabsTrigger value="misconceptions">Misconceptions</TabsTrigger>
+          <TabsTrigger value="logs">AI logs</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="analytics">
+          <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Class mastery</CardTitle>
+                <CardDescription>Overall class mastery across the cohort.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MasteryProgressBar
+                  score={overview.overall_class_mastery}
+                  label={overview.overall_class_mastery >= 70 ? "Mastered" : overview.overall_class_mastery < 40 ? "Weak" : "Developing"}
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Concept difficulty summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {overview.concept_difficulty_summary.map((concept) => (
+                  <div key={concept.concept_id} className="rounded-md border border-border p-3">
+                    <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                      <span className="font-medium text-foreground">{concept.concept_id} {concept.concept_name}</span>
+                      <span className="text-muted-foreground">{concept.weak_count} weak</span>
+                    </div>
+                    <MasteryProgressBar
+                      score={concept.average_mastery}
+                      label={concept.average_mastery >= 70 ? "Mastered" : concept.average_mastery < 40 ? "Weak" : "Developing"}
+                    />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           </div>
-        </div>
-        <div className="card">
-          <h2 className="font-semibold">Concept difficulty summary</h2>
-          <div className="mt-4 space-y-3">
-            {overview.concept_difficulty_summary.map((concept) => (
-              <div key={concept.concept_id} className="rounded-lg border border-slate-200 p-3">
-                <div className="flex items-center justify-between text-sm"><span>{concept.concept_id} {concept.concept_name}</span><span>{concept.weak_count} weak</span></div>
-                <div className="mt-2"><MasteryProgressBar score={concept.average_mastery} label={concept.average_mastery >= 70 ? "Mastered" : concept.average_mastery < 40 ? "Weak" : "Developing"} /></div>
+        </TabsContent>
+
+        <TabsContent value="learners">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Learner table</CardTitle>
+              <CardDescription>Open a learner to inspect evidence and alerts.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="border-b border-border text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="py-3 pr-4 font-medium">Learner</th>
+                      <th className="py-3 pr-4 font-medium">Level</th>
+                      <th className="py-3 pr-4 font-medium">Mastery</th>
+                      <th className="py-3 pr-4 font-medium">Recommendation</th>
+                      <th className="py-3 font-medium">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {overview.learners.map((learner) => (
+                      <tr key={learner.learner_id} className="hover:bg-muted/40">
+                        <td className="py-3 pr-4 font-medium text-foreground">{learner.display_name}</td>
+                        <td className="py-3 pr-4 text-muted-foreground">{learner.current_level}</td>
+                        <td className="py-3 pr-4 text-muted-foreground">{Math.round(learner.overall_mastery)}%</td>
+                        <td className="max-w-md py-3 pr-4 text-muted-foreground">{learner.next_recommendation}</td>
+                        <td className="py-3">
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/educator/learners/${learner.learner_id}`}>Open</Link>
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      <section className="mt-6 grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
-        <div>
-          <h2 className="mb-4 text-xl font-semibold">Alerts</h2>
-          <div className="space-y-3">{alerts.map((alert) => <EducatorAlertCard key={alert.alert_id} alert={alert} />)}</div>
-          {alerts.length === 0 && <div className="card text-sm text-slate-600">No active alerts yet.</div>}
-        </div>
-        <div className="space-y-5">
-          <div className="card">
-            <h2 className="font-semibold">Recurring misconceptions</h2>
-            <div className="mt-3 space-y-2 text-sm text-slate-700">
-              {overview.recurring_misconceptions.length ? overview.recurring_misconceptions.map(([id, count]) => <p key={id}>{id}: {count} occurrence(s)</p>) : <p>None detected yet.</p>}
-            </div>
+        <TabsContent value="alerts">
+          <div className="grid gap-3">
+            {alerts.map((alert) => <EducatorAlertCard key={alert.alert_id} alert={alert} />)}
+            {alerts.length === 0 && (
+              <Card className="border-dashed">
+                <CardContent className="p-8 text-center text-sm text-muted-foreground">No active alerts yet.</CardContent>
+              </Card>
+            )}
           </div>
-          <div className="card">
-            <h2 className="font-semibold">Recommended educator actions</h2>
-            <div className="mt-3 space-y-2 text-sm text-slate-700">{overview.recommended_actions.map((action) => <p key={action}>{action}</p>)}</div>
+        </TabsContent>
+
+        <TabsContent value="misconceptions">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Recurring misconceptions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {overview.recurring_misconceptions.length ? overview.recurring_misconceptions.map(([id, count]) => (
+                  <div key={id} className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
+                    <span className="font-medium text-foreground">{id}</span>
+                    <span className="badge">{count} occurrence(s)</span>
+                  </div>
+                )) : <p className="text-sm text-muted-foreground">None detected yet.</p>}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Recommended educator actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {overview.recommended_actions.length ? overview.recommended_actions.map((action) => (
+                  <div key={action} className="rounded-md border border-border bg-muted/30 p-3 text-sm leading-6 text-muted-foreground">
+                    {action}
+                  </div>
+                )) : (
+                  <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+                    No recommendations yet. Seed demo data or wait for more learner evidence.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
-          <div className="card">
-            <h2 className="font-semibold">AI usage log</h2>
-            <div className="mt-3 space-y-3 text-sm text-slate-700">
-              {aiLogs.slice(0, 8).map((log) => (
-                <div key={log.log_id} className="rounded-md border border-slate-200 p-3">
+        </TabsContent>
+
+        <TabsContent value="logs">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <FileText className="h-5 w-5 text-primary" />
+                AI usage log
+              </CardTitle>
+              <CardDescription>{groundedLogs} grounded calls / {safeguardLogs} safeguard events</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {aiLogs.slice(0, 12).map((log) => (
+                <div key={log.log_id} className="rounded-md border border-border p-3 text-sm">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="badge">{log.feature_area}</span>
-                    <span className="badge">{log.model_name}</span>
-                    {log.source_grounding_used && <span className="badge border-teal-200 bg-teal-50 text-teal-800">grounded</span>}
-                    {log.safeguard_triggered && <span className="badge border-rose-200 bg-rose-50 text-rose-700">safeguard</span>}
+                    <span className="badge"><Database className="h-3 w-3" /> {log.model_name}</span>
+                    {log.source_grounding_used && <span className="badge border-primary/30 bg-primary/10 text-primary">grounded</span>}
+                    {log.safeguard_triggered && <span className="badge border-destructive/30 bg-destructive/10 text-destructive">safeguard</span>}
                   </div>
-                  <p className="mt-2 text-xs text-slate-500">{log.timestamp ? new Date(log.timestamp).toLocaleString() : ""}</p>
-                  <p className="mt-1">{log.prompt_summary}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{log.timestamp ? new Date(log.timestamp).toLocaleString() : ""}</p>
+                  <p className="mt-1 text-muted-foreground">{log.prompt_summary}</p>
                 </div>
               ))}
-              {aiLogs.length === 0 && <p>No AI usage logs yet. Seed demo data or run tutor, teach, and safeguard flows.</p>}
-            </div>
-          </div>
-        </div>
-      </section>
+              {aiLogs.length === 0 && <p className="text-sm text-muted-foreground">No AI usage logs yet. Seed demo data or run tutor, teach, and safeguard flows.</p>}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
