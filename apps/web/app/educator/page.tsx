@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Bell, Brain, Database, FileText, LoaderCircle, RefreshCcw, Sparkles, TrendingUp, Users } from "lucide-react";
+import { AlertCircle, Bell, Brain, ChevronLeft, ChevronRight, Database, FileText, LoaderCircle, RefreshCcw, Sparkles, TrendingUp, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { EducatorAlertCard } from "@/components/EducatorAlertCard";
@@ -43,6 +43,8 @@ type GeminiDiag = {
   error?: string;
 };
 
+const AI_LOG_PAGE_SIZE = 12;
+
 function EducatorSkeleton() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
@@ -81,6 +83,7 @@ export default function EducatorPage() {
   const [gemini, setGemini] = useState<GeminiDiag | null>(null);
   const [testingGemini, setTestingGemini] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [aiLogPage, setAiLogPage] = useState(1);
 
   async function testGemini() {
     setTestingGemini(true);
@@ -112,6 +115,7 @@ export default function EducatorPage() {
       setOverview(overviewData);
       setAlerts(alertData);
       setAiLogs(aiLogData);
+      setAiLogPage(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load educator data");
     }
@@ -148,6 +152,10 @@ export default function EducatorPage() {
   const weakConcepts = overview.concept_difficulty_summary.reduce((total, concept) => total + concept.weak_count, 0);
   const groundedLogs = aiLogs.filter((log) => log.source_grounding_used).length;
   const safeguardLogs = aiLogs.filter((log) => log.safeguard_triggered).length;
+  const aiLogPageCount = Math.max(1, Math.ceil(aiLogs.length / AI_LOG_PAGE_SIZE));
+  const currentAiLogPage = Math.min(aiLogPage, aiLogPageCount);
+  const aiLogStart = (currentAiLogPage - 1) * AI_LOG_PAGE_SIZE;
+  const paginatedAiLogs = aiLogs.slice(aiLogStart, aiLogStart + AI_LOG_PAGE_SIZE);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
@@ -329,10 +337,13 @@ export default function EducatorPage() {
                 <FileText className="h-5 w-5 text-primary" />
                 AI usage log
               </CardTitle>
-              <CardDescription>{groundedLogs} grounded calls / {safeguardLogs} safeguard events</CardDescription>
+              <CardDescription>
+                {groundedLogs} grounded calls / {safeguardLogs} safeguard events
+                {aiLogs.length ? ` / showing ${aiLogStart + 1}-${Math.min(aiLogStart + AI_LOG_PAGE_SIZE, aiLogs.length)} of ${aiLogs.length}` : ""}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {aiLogs.slice(0, 12).map((log) => (
+              {paginatedAiLogs.map((log) => (
                 <div key={log.log_id} className="rounded-md border border-border p-3 text-sm">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="badge">{log.feature_area}</span>
@@ -345,6 +356,35 @@ export default function EducatorPage() {
                 </div>
               ))}
               {aiLogs.length === 0 && <p className="text-sm text-muted-foreground">No AI usage logs yet. Seed demo data or run tutor, teach, and safeguard flows.</p>}
+              {aiLogs.length > AI_LOG_PAGE_SIZE && (
+                <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Page {currentAiLogPage} of {aiLogPageCount}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={currentAiLogPage === 1}
+                      onClick={() => setAiLogPage((page) => Math.max(1, page - 1))}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={currentAiLogPage === aiLogPageCount}
+                      onClick={() => setAiLogPage((page) => Math.min(aiLogPageCount, page + 1))}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
