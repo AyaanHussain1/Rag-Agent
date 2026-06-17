@@ -4,18 +4,110 @@ LearnShift AI Web Feature Overview
 Project Purpose
 ---------------
 LearnShift AI is a web-based adaptive learning prototype for Java Object-Oriented Programming.
-The web app helps learners practice OOP concepts, receive adaptive explanations, request hints,
-complete diagnostic and assessment flows, and gives educators evidence-based class analytics.
+The competition demo combines a FastAPI backend, a Next.js frontend, MySQL persistence, JWT
+authentication, grounded OOP retrieval, adaptive learner state updates, and educator-facing
+evidence views.
+
+The app demonstrates a complete adaptive learning loop:
+- Collect learner evidence.
+- Update concept mastery.
+- Detect weak concepts and misconceptions.
+- Select a next teaching or assessment action.
+- Provide grounded explanations, hints, tutor reframes, and feedback.
+- Surface evidence, alerts, and recommended interventions to educators.
+
 
 Main User Roles
 ---------------
 1. Learner
-   A learner can create or select a fictional learner profile, complete diagnostics, view mastery,
-   study recommended concepts, ask the tutor for help, and take adaptive assessments.
+   A learner can log in, select or create a fictional learner profile, complete diagnostics,
+   view mastery, study recommended concepts, ask the tutor for help, and take adaptive
+   assessments.
 
 2. Educator
-   An educator can view class-level mastery, inspect learner progress, review alerts, see recurring
-   misconceptions, and use recommended interventions.
+   An educator can log in, view class-level mastery, inspect learner progress, review alerts,
+   review AI usage logs, test Gemini configuration, see recurring misconceptions, and use
+   recommended interventions.
+
+
+Authentication Features
+-----------------------
+- Provides JWT-only authentication with no refresh tokens.
+- Uses bcrypt password hashing through passlib.
+- Uses python-jose for JWT signing and validation.
+- Reads JWT_SECRET and JWT_EXPIRES_MINUTES from environment variables.
+- Returns a single access token from login and register.
+- Stores the access token in browser localStorage.
+- Sends authenticated API requests with an Authorization: Bearer token header.
+- Provides frontend auth helpers:
+  - login()
+  - register()
+  - logout()
+  - getCurrentUser()
+  - authenticated fetch wrapper through api()
+- Provides backend dependencies:
+  - get_current_user
+  - require_role
+- Redirects unauthenticated frontend users to /login.
+- Restricts educator pages to educator users.
+- Redirects role mismatches to the correct role area.
+- Navbar displays logged-in user name, role, and a logout button.
+
+
+Authentication Pages
+--------------------
+- /login
+  - Email field.
+  - Password field.
+  - Demo credentials section.
+  - Redirects to the requested protected page when available.
+  - Sends learners with linked learner profiles to their dashboard.
+  - Sends educator users to the educator dashboard.
+
+- /register
+  - Name field.
+  - Email field.
+  - Password field.
+  - Role selector for learner or educator.
+  - Creates a new learner profile for learner registrations.
+  - Sends learner users to the diagnostic flow after registration.
+  - Sends educator users to the educator dashboard after registration.
+
+
+Seeded Demo Accounts
+--------------------
+All seeded demo accounts use password123.
+
+- beginner@learnshift.ai
+  - Role: learner
+  - Linked learner profile: demo_beginner
+
+- advanced@learnshift.ai
+  - Role: learner
+  - Linked learner profile: demo_advanced
+
+- educator@learnshift.ai
+  - Role: educator
+  - No learner profile link
+
+
+Seeded Demo Learners
+--------------------
+- demo_beginner
+  - Weak prerequisite knowledge.
+
+- demo_confident_wrong
+  - High confidence but incorrect answers.
+
+- demo_repeater
+  - Repeated overriding and overloading misconception.
+
+- demo_fast_careless
+  - Strong learner with careless mistakes.
+
+- demo_advanced
+  - Advanced learner ready for challenge work.
+
 
 Home Page Features
 ------------------
@@ -23,6 +115,7 @@ Home Page Features
 - Provides navigation to:
   - Learner experience
   - Educator dashboard
+  - Safeguard demo
   - Responsible AI disclosure
 - Highlights judge-visible evidence:
   - Mastery changes after diagnostic and assessment attempts.
@@ -30,8 +123,22 @@ Home Page Features
   - Grounded source references for explanations.
   - Educator alerts generated from stored interactions.
 
+
+Navbar Features
+---------------
+- Shows core navigation links:
+  - Learner
+  - Educator
+  - Safeguards
+  - Disclosure
+- Shows a Login link when no user is authenticated.
+- Shows the authenticated user's name and role after login.
+- Provides a logout button that clears the stored access token and returns to /login.
+
+
 Learner Selection Features
 --------------------------
+- Requires authentication.
 - Lists existing learners with:
   - Display name
   - Current level
@@ -42,11 +149,13 @@ Learner Selection Features
   - BEGINNER
   - INTERMEDIATE
   - ADVANCED
-- Provides a demo seed action to populate sample learners and data.
+- Provides a demo seed action to populate sample learners, interactions, alerts, logs, and demo users.
 - Sends new learners directly into the diagnostic flow.
+
 
 Diagnostic Flow Features
 ------------------------
+- Requires authentication.
 - Starts an initial diagnostic for Java OOP concepts.
 - Loads six diagnostic questions covering:
   - Classes and Objects
@@ -68,15 +177,20 @@ Diagnostic Flow Features
 - Updates learner mastery and recommended starting concept.
 - Redirects the learner to the dashboard after submission.
 
+
 Learner Dashboard Features
 --------------------------
+- Requires authentication.
 - Displays learner profile information:
   - Display name
   - Current level
   - Overall mastery
   - Recommended next action
 - Shows concept mastery cards for each OOP concept.
-- Categorizes progress through mastery labels such as weak, developing, and mastered.
+- Categorizes progress through mastery labels:
+  - Weak
+  - Developing
+  - Mastered
 - Shows learner evidence:
   - Attempt count
   - Hint usage
@@ -89,8 +203,10 @@ Learner Dashboard Features
   - Take adaptive assessment
   - Open tutor mode
 
+
 Adaptive Learning Features
 --------------------------
+- Requires authentication.
 - Lets the learner choose an OOP concept or use the recommendation.
 - Supports teaching actions:
   - Let LearnShift choose
@@ -101,18 +217,25 @@ Adaptive Learning Features
   - Prerequisite review
   - Advanced application
 - Sends learner ID, concept ID, and optional action to the backend.
-- Backend can select a teaching action from learner evidence such as mastery, confidence,
-  misconceptions, and hint usage.
+- Backend can select a teaching action from learner evidence such as:
+  - Mastery
+  - Confidence
+  - Misconceptions
+  - Hint usage
 - Displays:
   - Generated lesson response
   - Concept ID
   - Teaching action
+  - Matched adaptation rule ID when available
   - Reason the action was selected
   - Quick guiding question
-  - Source references from the academic OOP content
+  - Source references from academic OOP content
+- Records teaching interactions and AI usage logs.
+
 
 Tutor Mode Features
 -------------------
+- Requires authentication.
 - Lets the learner type a confusion, wrong answer, or Java OOP question.
 - Records learner confidence from 1 to 5.
 - Sends the message to the backend tutor endpoint.
@@ -120,12 +243,19 @@ Tutor Mode Features
 - Displays:
   - Tutor explanation or reframe
   - Detected concept
+  - Detected misconception ID
+  - Matched adaptation rule ID when available
   - Misconception bank item when found
+  - Guiding question
+  - Follow-up check
+  - Profile update reason
   - Source references
-- Designed to help learners correct misunderstandings without simply replacing teacher judgment.
+- Records tutor interactions and AI usage logs.
+
 
 Adaptive Assessment Features
 ----------------------------
+- Requires authentication.
 - Lets the learner request the next adaptive question.
 - Can use the learner recommendation or a selected concept.
 - Displays:
@@ -135,6 +265,7 @@ Adaptive Assessment Features
   - Question type
   - Options when available
   - Reason the question was selected
+  - Matched adaptation rule ID when available
 - Allows learner answer input.
 - Records confidence from 1 to 5.
 - Provides up to three progressive hints per question.
@@ -144,8 +275,21 @@ Adaptive Assessment Features
 - Updates learner profile and mastery after attempts.
 - Includes safeguard behavior for direct answer requests during assessment.
 
+
+Safeguard Demo Features
+-----------------------
+- Requires authentication.
+- Provides a judge-visible page for safety and grounding checks.
+- Tests an in-scope OOP question and displays grounded source references.
+- Tests an out-of-scope question such as photosynthesis and shows refusal behavior.
+- Tests assessment direct-answer safeguards by submitting "Just give me the answer".
+- Links to the Responsible AI disclosure page.
+- Uses the same protected API flow as the learner experience.
+
+
 Educator Dashboard Features
 ---------------------------
+- Requires educator role.
 - Displays class-level overview:
   - Learner count
   - Overall class mastery
@@ -162,16 +306,32 @@ Educator Dashboard Features
 - Shows generated alerts.
 - Shows recurring misconceptions with occurrence counts.
 - Shows recommended educator actions.
+- Shows AI usage logs with:
+  - Feature area
+  - Model name
+  - Prompt summary
+  - Grounded flag
+  - Safeguard flag
+  - Timestamp
 - Provides a demo seed action to populate sample class data.
+- Provides a Gemini key test that reports:
+  - Status
+  - Model name
+  - Whether an API key is present
+  - Whether the Gemini client initialized
+  - Sample live response or error details
+
 
 Educator Learner Detail Features
 --------------------------------
+- Requires educator role.
 - Displays an individual learner's profile.
 - Shows recommended intervention for that learner.
 - Shows concept mastery cards for all concepts.
 - Displays a detailed evidence timeline.
 - Displays learner-specific alerts and misconceptions.
 - Helps educators review why the system recommended an intervention.
+
 
 Responsible AI Disclosure Features
 ----------------------------------
@@ -182,7 +342,7 @@ Responsible AI Disclosure Features
   - FastAPI
   - SQLAlchemy
   - Alembic
-  - MySQL or SQLite
+  - MySQL
   - Next.js
   - TypeScript
   - Tailwind CSS
@@ -197,37 +357,88 @@ Responsible AI Disclosure Features
   - The app does not replace teacher judgment.
 - Recommends human educator review before classroom use.
 
+
 Grounded RAG and Source Reference Features
 ------------------------------------------
-- The app is connected to a FastAPI backend that can retrieve from local OOP academic chunks.
+- The app is connected to a FastAPI backend that retrieves from local OOP academic chunks.
 - Explanations can include source metadata:
   - Source title
+  - Source document when available
   - Chunk ID
   - Concept ID
-  - Page number when available
+  - Page or section when available
   - Similarity or confidence score when available
+  - Excerpt
 - If Gemini is configured, the backend can use it for embeddings and generation.
 - If Gemini is not configured, the backend falls back to deterministic grounded responses.
-- The tutor and learning flows avoid unsupported topics outside the configured OOP module.
+- The tutor, learning, RAG, and safeguard flows avoid unsupported topics outside the configured OOP module.
+
 
 Backend API Integration Features
 --------------------------------
 - Frontend API base URL is controlled by NEXT_PUBLIC_API_BASE_URL.
 - Default API URL is http://localhost:8000.
-- Main frontend API areas include:
-  - /api/demo/seed
-  - /api/learners
-  - /api/learners/{learner_id}/profile
-  - /api/diagnostic/start
-  - /api/diagnostic/submit
-  - /api/teach
-  - /api/tutor/confusion
-  - /api/assessment/next
-  - /api/assessment/submit
-  - /api/hints/next
-  - /api/educator/overview
-  - /api/educator/alerts
-  - /api/educator/learners/{learner_id}
+- Public backend endpoints:
+  - GET /health
+  - POST /api/demo/seed
+- Authentication endpoints:
+  - POST /api/auth/register
+  - POST /api/auth/login
+  - GET /api/auth/me
+  - POST /api/auth/logout
+- Authenticated learner or educator endpoints:
+  - POST /api/learners
+  - GET /api/learners
+  - GET /api/learners/{learner_id}
+  - GET /api/learners/{learner_id}/profile
+  - POST /api/diagnostic/start
+  - POST /api/diagnostic/submit
+  - POST /api/rag/answer
+  - POST /api/teach
+  - POST /api/tutor/confusion
+  - POST /api/assessment/next
+  - POST /api/assessment/submit
+  - POST /api/hints/next
+- Educator-only endpoints:
+  - GET /api/diag/gemini
+  - GET /api/educator/overview
+  - GET /api/educator/alerts
+  - GET /api/educator/ai-logs
+  - GET /api/educator/learners/{learner_id}
+
+
+Database and Migration Features
+-------------------------------
+- Uses SQLAlchemy models and Alembic migrations.
+- Supports MySQL through DATABASE_URL.
+- Uses PyMySQL as the MySQL driver.
+- Startup also calls Base.metadata.create_all for demo-friendly local setup.
+- Core tables include:
+  - users
+  - learners
+  - concepts
+  - source_documents
+  - learning_outcomes
+  - content_chunks
+  - questions
+  - hint_ladders
+  - misconceptions
+  - learner_mastery
+  - interactions
+  - assessment_attempts
+  - educator_alerts
+  - ai_usage_logs
+  - adaptation_rules
+- The users table stores:
+  - id
+  - email
+  - password_hash
+  - name
+  - role
+  - learner_id
+  - created_at
+- Alembic migration 0002_users_auth creates the users table for JWT authentication.
+
 
 Frontend Technology Features
 ----------------------------
@@ -236,6 +447,8 @@ Frontend Technology Features
 - Uses Tailwind CSS for styling.
 - Uses lucide-react icons.
 - Uses reusable UI components for:
+  - Auth provider
+  - Navbar
   - Concept mastery cards
   - Mastery progress bars
   - Recommendations
@@ -243,8 +456,10 @@ Frontend Technology Features
   - Educator alerts
   - Interaction timeline
 
+
 Data and Evidence Features
 --------------------------
+- Stores users and roles.
 - Stores learner profiles.
 - Stores concept mastery.
 - Stores diagnostic interactions.
@@ -252,7 +467,11 @@ Data and Evidence Features
 - Stores hint usage.
 - Stores misconception evidence.
 - Stores educator alerts.
+- Stores AI usage logs.
+- Stores adaptation rules.
 - Uses stored interactions to refresh recommendations and class analytics.
+- Demo seed is idempotent for the competition profiles and relinks seeded demo users.
+
 
 Supported Learning Concepts
 ---------------------------
@@ -263,27 +482,89 @@ Supported Learning Concepts
 - C005: Method Overriding
 - C006: Polymorphism
 
+
+Validation and Smoke Test Features
+----------------------------------
+- Validation script checks dataset coverage:
+  - Source documents
+  - Chunks
+  - Questions
+  - Misconceptions
+  - Hint ladders
+  - Learners
+  - Demo interactions
+  - Adaptation rules
+- Validation script checks database readiness:
+  - AI usage logs
+  - Educator alert types
+  - Concepts
+  - Demo learners
+  - Users table
+  - Demo users linked to learner profiles
+- Validation script checks auth behavior:
+  - Protected learner routes return 401 unauthenticated.
+  - Learner login returns a JWT.
+  - /api/auth/me returns the current learner.
+  - Learner token cannot access educator routes.
+  - Educator token can access educator routes.
+- Smoke test:
+  - Seeds demo data.
+  - Verifies unauthenticated learner access fails.
+  - Logs in as learner.
+  - Exercises learner profile, diagnostic, teaching, assessment, hints, tutor, and RAG flows.
+  - Logs in as educator.
+  - Verifies learner access to educator routes fails.
+  - Exercises educator overview, alerts, learner detail, and AI log endpoints.
+
+
 Typical Demo Flow
 -----------------
 1. Start the backend on http://localhost:8000.
-2. Start the web app.
+2. Start the web app on http://localhost:3000.
 3. Open the home page.
-4. Choose "Start as Learner".
-5. Seed demo data or create a fictional learner.
-6. Complete the diagnostic.
-7. Review the learner dashboard.
-8. Start adaptive learning or adaptive assessment.
-9. Ask tutor mode about a misconception.
-10. Open the educator dashboard to review analytics, alerts, and interventions.
+4. Go to /login.
+5. Seed demo data from the learner or educator page if needed.
+6. Log in as beginner@learnshift.ai with password123.
+7. Review the linked demo_beginner dashboard.
+8. Complete the diagnostic.
+9. Start adaptive learning or adaptive assessment.
+10. Ask tutor mode about a misconception.
+11. Open the safeguard demo and test in-scope, out-of-scope, and direct-answer behavior.
+12. Log out.
+13. Log in as educator@learnshift.ai with password123.
+14. Review educator analytics, alerts, learner evidence, AI logs, and Gemini key status.
+
+
+Environment Variables
+---------------------
+- NEXT_PUBLIC_API_BASE_URL
+  - Frontend API base URL.
+  - Default: http://localhost:8000
+
+- DATABASE_URL
+  - Backend database connection string.
+  - MySQL example: mysql+pymysql://username:password@localhost:3306/learnshift_ai
+
+- JWT_SECRET
+  - Secret used to sign JWT access tokens.
+
+- JWT_EXPIRES_MINUTES
+  - Access token lifetime in minutes.
+
+- GOOGLE_API_KEY
+  - Optional Gemini API key.
+  - When missing, the backend uses deterministic grounded fallback responses.
+
 
 Value of the Web App
 --------------------
-The web app demonstrates a complete adaptive learning loop:
-- Collect learner evidence.
-- Update mastery.
-- Detect weak concepts and misconceptions.
-- Recommend the next action.
-- Provide grounded lessons and tutor feedback.
-- Offer hints and adaptive assessments.
-- Surface evidence and alerts to educators.
-
+The web app demonstrates an end-to-end adaptive learning product:
+- Authenticated learner and educator roles.
+- Evidence-driven learner modeling.
+- Adaptive teaching decisions.
+- Progressive hinting.
+- Adaptive assessment selection and feedback.
+- Grounded RAG explanations.
+- Safeguards for scope and assessment integrity.
+- Educator analytics, alerts, and AI usage visibility.
+- MySQL-backed persistence with migrations.

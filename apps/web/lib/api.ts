@@ -1,4 +1,17 @@
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+const TOKEN_KEY = "learnshift_access_token";
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: "learner" | "educator";
+  learner_id?: string | null;
+};
+
+export type AuthResponse = {
+  access_token: string;
+};
 
 export type ConceptMastery = {
   concept_id: string;
@@ -73,10 +86,12 @@ export const concepts = [
 ] as const;
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getStoredToken();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers || {})
     },
     cache: "no-store"
@@ -87,6 +102,55 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   }
   return res.json() as Promise<T>;
 }
+
+export function getStoredToken() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(TOKEN_KEY);
+}
+
+export function setStoredToken(token: string) {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(TOKEN_KEY, token);
+  }
+}
+
+export function clearStoredToken() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+export async function login(email: string, password: string) {
+  const response = await api<AuthResponse>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password })
+  });
+  setStoredToken(response.access_token);
+  return getCurrentUser();
+}
+
+export async function register(name: string, email: string, password: string, role: string) {
+  const response = await api<AuthResponse>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ name, email, password, role })
+  });
+  setStoredToken(response.access_token);
+  return getCurrentUser();
+}
+
+export async function logout() {
+  try {
+    await api("/api/auth/logout", { method: "POST" });
+  } finally {
+    clearStoredToken();
+  }
+}
+
+export async function getCurrentUser() {
+  return api<AuthUser>("/api/auth/me");
+}
+
+export const authenticatedFetch = api;
 
 export function labelClass(label: string) {
   if (label === "Mastered") return "bg-emerald-50 text-emerald-700 border-emerald-200";

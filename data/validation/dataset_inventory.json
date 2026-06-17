@@ -1,7 +1,7 @@
 {
   "summary_percentage": 100.0,
-  "passed": 23,
-  "total": 23,
+  "passed": 31,
+  "total": 31,
   "failed_checks": [],
   "checks": [
     {
@@ -92,12 +92,12 @@
     {
       "check": "AI usage log table exists",
       "status": "PASS",
-      "detail": "['adaptation_rules', 'ai_usage_logs', 'assessment_attempts', 'concepts', 'content_chunks', 'educator_alerts', 'hint_ladders', 'interactions', 'learner_mastery', 'learners', 'learning_outcomes', 'misconceptions', 'questions', 'source_documents']"
+      "detail": "['adaptation_rules', 'ai_usage_logs', 'alembic_version', 'assessment_attempts', 'concepts', 'content_chunks', 'educator_alerts', 'hint_ladders', 'interactions', 'learner_mastery', 'learners', 'learning_outcomes', 'misconceptions', 'questions', 'source_documents', 'users']"
     },
     {
       "check": "AI usage log table has records after seed/demo",
       "status": "PASS",
-      "detail": "18 AI log rows"
+      "detail": "15 AI log rows"
     },
     {
       "check": "6 educator alert types minimum",
@@ -115,9 +115,49 @@
       "detail": "5 demo learners"
     },
     {
+      "check": "Users table exists",
+      "status": "PASS",
+      "detail": "['adaptation_rules', 'ai_usage_logs', 'alembic_version', 'assessment_attempts', 'concepts', 'content_chunks', 'educator_alerts', 'hint_ladders', 'interactions', 'learner_mastery', 'learners', 'learning_outcomes', 'misconceptions', 'questions', 'source_documents', 'users']"
+    },
+    {
+      "check": "3 demo users after seeding",
+      "status": "PASS",
+      "detail": "3 users"
+    },
+    {
+      "check": "Demo users linked to learner profiles",
+      "status": "PASS",
+      "detail": "[('advanced@learnshift.ai', 'learner', 'demo_advanced'), ('beginner@learnshift.ai', 'learner', 'demo_beginner'), ('educator@learnshift.ai', 'educator', None)]"
+    },
+    {
       "check": "75 interactions after seeding",
       "status": "PASS",
-      "detail": "117 interactions"
+      "detail": "75 interactions"
+    },
+    {
+      "check": "Protected learner routes return 401 unauthenticated",
+      "status": "PASS",
+      "detail": "GET /api/learners -> 401"
+    },
+    {
+      "check": "Learner login endpoint returns JWT",
+      "status": "PASS",
+      "detail": "POST /api/auth/login -> 200"
+    },
+    {
+      "check": "Current user endpoint returns learner user",
+      "status": "PASS",
+      "detail": "{'id': 'user_8cd541d5e1a1', 'email': 'beginner@learnshift.ai', 'name': 'Demo Beginner', 'role': 'learner', 'learner_id': 'demo_beginner'}"
+    },
+    {
+      "check": "Learner token cannot access educator routes",
+      "status": "PASS",
+      "detail": "GET /api/educator/overview -> 403"
+    },
+    {
+      "check": "Educator token can access educator routes",
+      "status": "PASS",
+      "detail": "login 200, overview 200"
     }
   ]
 }

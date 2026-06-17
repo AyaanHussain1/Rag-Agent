@@ -22,10 +22,31 @@ Copy `.env.example` or set these values:
 ```bash
 GOOGLE_API_KEY=optional_key_for_live_generation
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-DATABASE_URL=sqlite:///./learnshift_ai.db
+DATABASE_URL=mysql+pymysql://username:password@localhost:3306/learnshift_ai
+JWT_SECRET=replace-with-a-long-random-secret
+JWT_EXPIRES_MINUTES=120
 ```
 
 `GOOGLE_API_KEY` is optional. Without it, the backend uses deterministic grounded fallback responses.
+
+Authentication is JWT-only. The API returns one access token from login/register and does not issue refresh tokens.
+
+### MySQL Setup
+
+Create a MySQL database before running migrations:
+
+```sql
+CREATE DATABASE learnshift_ai CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'learnshift'@'localhost' IDENTIFIED BY 'replace_me';
+GRANT ALL PRIVILEGES ON learnshift_ai.* TO 'learnshift'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+Then set:
+
+```bash
+DATABASE_URL=mysql+pymysql://learnshift:replace_me@localhost:3306/learnshift_ai
+```
 
 ### Backend Setup
 
@@ -43,6 +64,8 @@ Seed the demo dataset:
 ```bash
 curl -X POST http://localhost:8000/api/demo/seed
 ```
+
+This also creates demo auth accounts and links learner accounts to seeded learner profiles.
 
 ### Frontend Setup
 
@@ -68,6 +91,14 @@ After `/api/demo/seed`, use:
 - `demo_fast_careless`: strong learner with careless mistakes.
 - `demo_advanced`: advanced learner ready for challenge work.
 
+### Demo Credentials
+
+All demo passwords are `password123`.
+
+- Learner: `beginner@learnshift.ai` linked to `demo_beginner`.
+- Learner: `advanced@learnshift.ai` linked to `demo_advanced`.
+- Educator: `educator@learnshift.ai`.
+
 ### Validation
 
 From the repo root, after seeding:
@@ -82,6 +113,8 @@ The script prints PASS/FAIL checks and writes:
 data/validation/dataset_inventory.json
 ```
 
+Validation checks dataset coverage, database tables, demo users, auth endpoints, and 401/403 behavior for protected routes.
+
 ### Smoke Test
 
 Start the backend first, then run:
@@ -90,7 +123,7 @@ Start the backend first, then run:
 python scripts/smoke_test_demo_flow.py
 ```
 
-The smoke test seeds data, calls learner, diagnostic, teach, assessment, hint, tutor, RAG, educator, alert, detail, and AI log endpoints. It does not require an external API key.
+The smoke test seeds data, logs in as learner and educator, calls learner, diagnostic, teach, assessment, hint, tutor, RAG, educator, alert, detail, and AI log endpoints, and verifies unauthorized access fails. It does not require an external API key.
 
 ### Live Demo Script
 
@@ -417,3 +450,11 @@ The project also extends beyond simple Q&A by adding adaptive learning behavior.
 ## Conclusion
 
 The Adaptive RAG Agent is an educational AI prototype for learning Object-Oriented Programming. It combines PDF-based content extraction, data cleaning, vector embeddings, semantic retrieval, and Gemini-powered response generation to create a personalized tutoring experience.
+
+
+
+cd /d/agent/Rag-Agent/services/ai
+source .venv/Scripts/activate
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000

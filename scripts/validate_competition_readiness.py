@@ -1,6 +1,9 @@
 import csv
 import json
+import os
 import sqlite3
+import urllib.error
+import urllib.request
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -10,6 +13,14 @@ DATA = ROOT / "data"
 CONCEPTS = {"C001", "C002", "C003", "C004", "C005", "C006"}
 DB_PATHS = [ROOT / "learnshift_ai.db", ROOT / "services" / "ai" / "learnshift_ai.db"]
 OUT_PATH = DATA / "validation" / "dataset_inventory.json"
+BASE_URL = os.getenv("VALIDATION_API_BASE_URL", "http://localhost:8000")
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(ROOT / ".env", override=False)
+except Exception:
+    pass
 
 
 def read_csv(path: Path) -> list[dict]:
@@ -80,6 +91,8 @@ def main() -> int:
     db_details = validate_db(expected_alert_types)
     for item in db_details:
         results.append(item)
+    for item in validate_auth_api():
+        results.append(item)
 
     passed = sum(1 for item in results if item["status"] == "PASS")
     percentage = round(passed / len(results) * 100, 1)
@@ -101,6 +114,11 @@ def main() -> int:
 
 def validate_db(expected_alert_types: set[str]) -> list[dict]:
     results: list[dict] = []
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        sqlalchemy_results = validate_db_with_sqlalchemy(database_url, expected_alert_types)
+        if sqlalchemy_results:
+            return sqlalchemy_results
     db_path = select_db_path()
     if db_path is None:
         check("AI usage log table has records after seed/demo", False, "SQLite DB not found; run backend seed first", results)
@@ -118,6 +136,23 @@ def validate_db(expected_alert_types: set[str]) -> list[dict]:
     check("6 concepts exist in database", db_concepts >= 6, f"{db_concepts} concepts", results)
     db_learners = cur.execute("SELECT COUNT(*) FROM learners WHERE is_demo = 1").fetchone()[0] if "learners" in tables else 0
     check("5 demo learners after seeding", db_learners >= 5, f"{db_learners} demo learners", results)
+    users_count = cur.execute("SELECT COUNT(*) FROM users").fetchone()[0] if "users" in tables else 0
+    check("Users table exists", "users" in tables, str(sorted(tables)), results)
+    check("3 demo users after seeding", users_count >= 3, f"{users_count} users", results)
+    demo_user_rows = (
+        cur.execute(
+            "SELECT email, role, learner_id FROM users WHERE email IN (?, ?, ?)",
+            ("beginner@learnshift.ai", "advanced@learnshift.ai", "educator@learnshift.ai"),
+        ).fetchall()
+        if "users" in tables
+        else []
+    )
+    expected_users = {
+        ("beginner@learnshift.ai", "learner", "demo_beginner"),
+        ("advanced@learnshift.ai", "learner", "demo_advanced"),
+        ("educator@learnshift.ai", "educator", None),
+    }
+    check("Demo users linked to learner profiles", expected_users <= set(demo_user_rows), str(demo_user_rows), results)
     db_interactions = cur.execute("SELECT COUNT(*) FROM interactions").fetchone()[0] if "interactions" in tables else 0
     check("75 interactions after seeding", db_interactions >= 75, f"{db_interactions} interactions", results)
     con.close()
@@ -140,6 +175,91 @@ def select_db_path() -> Path | None:
         except sqlite3.Error:
             scored.append((0, path))
     return sorted(scored, key=lambda item: item[0], reverse=True)[0][1]
+
+
+def validate_db_with_sqlalchemy(database_url: str, expected_alert_types: set[str]) -> list[dict]:
+    try:
+        from sqlalchemy import create_engine, inspect, text
+    except Exception:
+        return []
+    results: list[dict] = []
+    try:
+        engine = create_engine(database_url, pool_pre_ping=True)
+        with engine.connect() as con:
+            tables = set(inspect(con).get_table_names())
+            check("AI usage log table exists", "ai_usage_logs" in tables, str(sorted(tables)), results)
+            ai_count = con.execute(text("SELECT COUNT(*) FROM ai_usage_logs")).scalar() if "ai_usage_logs" in tables else 0
+            check("AI usage log table has records after seed/demo", ai_count > 0, f"{ai_count} AI log rows", results)
+            alert_types = {row[0] for row in con.execute(text("SELECT DISTINCT alert_type FROM educator_alerts"))} if "educator_alerts" in tables else set()
+            check("6 educator alert types minimum", len(alert_types) >= 6 and expected_alert_types <= alert_types, str(sorted(alert_types)), results)
+            db_concepts = con.execute(text("SELECT COUNT(*) FROM concepts")).scalar() if "concepts" in tables else 0
+            check("6 concepts exist in database", db_concepts >= 6, f"{db_concepts} concepts", results)
+            db_learners = con.execute(text("SELECT COUNT(*) FROM learners WHERE is_demo = 1")).scalar() if "learners" in tables else 0
+            check("5 demo learners after seeding", db_learners >= 5, f"{db_learners} demo learners", results)
+            users_count = con.execute(text("SELECT COUNT(*) FROM users")).scalar() if "users" in tables else 0
+            check("Users table exists", "users" in tables, str(sorted(tables)), results)
+            check("3 demo users after seeding", users_count >= 3, f"{users_count} users", results)
+            if "users" in tables:
+                demo_user_rows = {
+                    tuple(row)
+                    for row in con.execute(text(
+                        "SELECT email, role, learner_id FROM users "
+                        "WHERE email IN ('beginner@learnshift.ai', 'advanced@learnshift.ai', 'educator@learnshift.ai')"
+                    ))
+                }
+            else:
+                demo_user_rows = set()
+            expected_users = {
+                ("beginner@learnshift.ai", "learner", "demo_beginner"),
+                ("advanced@learnshift.ai", "learner", "demo_advanced"),
+                ("educator@learnshift.ai", "educator", None),
+            }
+            check("Demo users linked to learner profiles", expected_users <= demo_user_rows, str(sorted(demo_user_rows)), results)
+            db_interactions = con.execute(text("SELECT COUNT(*) FROM interactions")).scalar() if "interactions" in tables else 0
+            check("75 interactions after seeding", db_interactions >= 75, f"{db_interactions} interactions", results)
+    except Exception as exc:
+        check("Database URL validation", False, f"{type(exc).__name__}: {exc}", results)
+    return results
+
+
+def validate_auth_api() -> list[dict]:
+    results: list[dict] = []
+    try:
+        unauth_status, _ = http_call("GET", "/api/learners")
+        check("Protected learner routes return 401 unauthenticated", unauth_status == 401, f"GET /api/learners -> {unauth_status}", results)
+        login_status, login_body = http_call("POST", "/api/auth/login", {"email": "beginner@learnshift.ai", "password": "password123"})
+        token = login_body.get("access_token") if isinstance(login_body, dict) else None
+        check("Learner login endpoint returns JWT", login_status == 200 and bool(token), f"POST /api/auth/login -> {login_status}", results)
+        me_status, me_body = http_call("GET", "/api/auth/me", token=token)
+        check("Current user endpoint returns learner user", me_status == 200 and me_body.get("email") == "beginner@learnshift.ai", str(me_body), results)
+        educator_status, _ = http_call("GET", "/api/educator/overview", token=token)
+        check("Learner token cannot access educator routes", educator_status == 403, f"GET /api/educator/overview -> {educator_status}", results)
+        edu_login_status, edu_login_body = http_call("POST", "/api/auth/login", {"email": "educator@learnshift.ai", "password": "password123"})
+        educator_token = edu_login_body.get("access_token") if isinstance(edu_login_body, dict) else None
+        edu_status, _ = http_call("GET", "/api/educator/overview", token=educator_token)
+        check("Educator token can access educator routes", edu_login_status == 200 and edu_status == 200, f"login {edu_login_status}, overview {edu_status}", results)
+    except Exception as exc:
+        check("Auth endpoint validation", False, f"{type(exc).__name__}: {exc}", results)
+    return results
+
+
+def http_call(method: str, path: str, payload: dict | None = None, token: str | None = None) -> tuple[int, dict]:
+    data = json.dumps(payload).encode("utf-8") if payload is not None else None
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(f"{BASE_URL}{path}", data=data, method=method, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as res:
+            body = res.read().decode("utf-8")
+            return res.status, json.loads(body) if body else {}
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8")
+        try:
+            parsed = json.loads(body) if body else {}
+        except json.JSONDecodeError:
+            parsed = {"detail": body}
+        return exc.code, parsed
 
 
 if __name__ == "__main__":

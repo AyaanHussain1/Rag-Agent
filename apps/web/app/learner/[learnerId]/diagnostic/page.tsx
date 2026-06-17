@@ -3,11 +3,13 @@
 import { Send } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useRequireAuth } from "@/components/AuthProvider";
 import { api, type Question } from "@/lib/api";
 
 type AnswerState = Record<string, { learner_answer: string; confidence: number; started: number }>;
 
 export default function DiagnosticPage() {
+  const auth = useRequireAuth();
   const { learnerId } = useParams<{ learnerId: string }>();
   const router = useRouter();
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -16,6 +18,7 @@ export default function DiagnosticPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (auth.loading || !auth.user) return;
     api<{ questions: Question[] }>("/api/diagnostic/start", { method: "POST" })
       .then((data) => {
         setQuestions(data.questions);
@@ -23,7 +26,7 @@ export default function DiagnosticPage() {
         setAnswers(Object.fromEntries(data.questions.map((q) => [q.question_id, { learner_answer: "", confidence: 3, started: now }])));
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Could not start diagnostic"));
-  }, []);
+  }, [auth.loading, auth.user]);
 
   function update(questionId: string, field: "learner_answer" | "confidence", value: string | number) {
     setAnswers((prev) => ({ ...prev, [questionId]: { ...prev[questionId], [field]: value } }));
@@ -48,6 +51,8 @@ export default function DiagnosticPage() {
       setError(err instanceof Error ? err.message : "Could not submit diagnostic");
     }
   }
+
+  if (auth.loading || !auth.user) return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Checking login...</div>;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">

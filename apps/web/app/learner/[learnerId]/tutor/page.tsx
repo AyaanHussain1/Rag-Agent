@@ -4,6 +4,7 @@ import { MessageSquareText, Send } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { SourceReferenceBox } from "@/components/SourceReferenceBox";
+import { useRequireAuth } from "@/components/AuthProvider";
 import { api, type LearnerProfile, type Source } from "@/lib/api";
 
 type TutorResponse = {
@@ -24,6 +25,7 @@ type TutorResponse = {
 };
 
 export default function TutorPage() {
+  const auth = useRequireAuth();
   const { learnerId } = useParams<{ learnerId: string }>();
   const [message, setMessage] = useState("I think overriding is when the same class has two methods with different parameters.");
   const [confidence, setConfidence] = useState(2);
@@ -41,6 +43,8 @@ export default function TutorPage() {
       setLoading(false);
     }
   }
+
+  if (auth.loading || !auth.user) return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Checking login...</div>;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">

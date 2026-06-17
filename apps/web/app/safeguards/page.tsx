@@ -4,6 +4,7 @@ import { ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { SourceReferenceBox } from "@/components/SourceReferenceBox";
+import { useRequireAuth } from "@/components/AuthProvider";
 import { api, type Question, type Source } from "@/lib/api";
 
 type RagResponse = {
@@ -18,6 +19,7 @@ type NextResponse = { question: Question };
 type SubmitResponse = { feedback: string; safeguard?: boolean; matched_adaptation_rule_id?: string };
 
 export default function SafeguardsPage() {
+  const auth = useRequireAuth();
   const [inScope, setInScope] = useState<RagResponse | null>(null);
   const [outOfScope, setOutOfScope] = useState<RagResponse | null>(null);
   const [directAnswer, setDirectAnswer] = useState<SubmitResponse | null>(null);
@@ -79,6 +81,8 @@ export default function SafeguardsPage() {
       setLoading("");
     }
   }
+
+  if (auth.loading || !auth.user) return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Checking login...</div>;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">

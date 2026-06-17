@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { EducatorAlertCard } from "@/components/EducatorAlertCard";
 import { MasteryProgressBar } from "@/components/MasteryProgressBar";
+import { useRequireAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/api";
 
 type Overview = {
@@ -38,6 +39,7 @@ type GeminiDiag = {
 };
 
 export default function EducatorPage() {
+  const auth = useRequireAuth("educator");
   const [overview, setOverview] = useState<Overview | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [aiLogs, setAiLogs] = useState<AILog[]>([]);
@@ -86,9 +88,10 @@ export default function EducatorPage() {
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    if (!auth.loading && auth.user?.role === "educator") load();
+  }, [auth.loading, auth.user]);
 
+  if (auth.loading || !auth.user || auth.user.role !== "educator") return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Checking educator access...</div>;
   if (error) return <div className="mx-auto max-w-4xl px-4 py-8 text-rose-700">{error}</div>;
   if (!overview) return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Loading educator dashboard...</div>;
 

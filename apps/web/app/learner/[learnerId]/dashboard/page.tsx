@@ -7,19 +7,23 @@ import { useEffect, useState } from "react";
 import { ConceptMasteryCard } from "@/components/ConceptMasteryCard";
 import { InteractionTimeline } from "@/components/InteractionTimeline";
 import { RecommendationCard } from "@/components/RecommendationCard";
+import { useRequireAuth } from "@/components/AuthProvider";
 import { api, type LearnerProfile } from "@/lib/api";
 
 export default function LearnerDashboard() {
+  const auth = useRequireAuth();
   const { learnerId } = useParams<{ learnerId: string }>();
   const [profile, setProfile] = useState<LearnerProfile | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (auth.loading || !auth.user) return;
     api<LearnerProfile>(`/api/learners/${learnerId}/profile`)
       .then(setProfile)
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load profile"));
-  }, [learnerId]);
+  }, [auth.loading, auth.user, learnerId]);
 
+  if (auth.loading || !auth.user) return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Checking login...</div>;
   if (error) return <div className="mx-auto max-w-4xl px-4 py-8 text-rose-700">{error}</div>;
   if (!profile) return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Loading profile...</div>;
 

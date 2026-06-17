@@ -3,6 +3,7 @@
 import { Plus, RefreshCcw, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useRequireAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/api";
 
 type Learner = {
@@ -14,6 +15,7 @@ type Learner = {
 };
 
 export default function LearnerPage() {
+  const auth = useRequireAuth();
   const router = useRouter();
   const [learners, setLearners] = useState<Learner[]>([]);
   const [name, setName] = useState("Fictional Learner");
@@ -34,8 +36,8 @@ export default function LearnerPage() {
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    if (!auth.loading && auth.user) load();
+  }, [auth.loading, auth.user]);
 
   async function createLearner() {
     const learner = await api<Learner>("/api/learners", {
@@ -49,6 +51,8 @@ export default function LearnerPage() {
     await api("/api/demo/seed", { method: "POST" });
     await load();
   }
+
+  if (auth.loading || !auth.user) return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Checking login...</div>;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">

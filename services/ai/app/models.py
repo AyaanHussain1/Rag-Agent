@@ -33,6 +33,18 @@ class Learner(Base):
     interactions: Mapped[list["Interaction"]] = relationship(back_populates="learner", cascade="all, delete-orphan")
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("user"))
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default="learner")
+    learner_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("learners.learner_id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class Concept(Base):
     __tablename__ = "concepts"
 

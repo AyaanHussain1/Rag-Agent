@@ -3,6 +3,7 @@
 import { HelpCircle, Send, Shuffle } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { useRequireAuth } from "@/components/AuthProvider";
 import { api, concepts, type LearnerProfile, type Question } from "@/lib/api";
 
 type NextResponse = { question: Question; why_selected: string; matched_adaptation_rule_id?: string; profile: LearnerProfile };
@@ -10,6 +11,7 @@ type SubmitResponse = { correct?: boolean; feedback: string; safeguard?: boolean
 type HintResponse = { hint: string; hint_count: number; exhausted: boolean; profile: LearnerProfile };
 
 export default function AssessmentPage() {
+  const auth = useRequireAuth();
   const { learnerId } = useParams<{ learnerId: string }>();
   const [conceptId, setConceptId] = useState("");
   const [question, setQuestion] = useState<Question | null>(null);
@@ -86,6 +88,8 @@ export default function AssessmentPage() {
       setError(err instanceof Error ? err.message : "Could not submit the answer");
     }
   }
+
+  if (auth.loading || !auth.user) return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Checking login...</div>;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">

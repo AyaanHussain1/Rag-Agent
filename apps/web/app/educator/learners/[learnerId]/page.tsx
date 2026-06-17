@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ConceptMasteryCard } from "@/components/ConceptMasteryCard";
 import { EducatorAlertCard } from "@/components/EducatorAlertCard";
 import { InteractionTimeline } from "@/components/InteractionTimeline";
+import { useRequireAuth } from "@/components/AuthProvider";
 import { api, type LearnerProfile, type Interaction } from "@/lib/api";
 
 type Detail = {
@@ -15,13 +16,16 @@ type Detail = {
 };
 
 export default function EducatorLearnerDetail() {
+  const auth = useRequireAuth("educator");
   const { learnerId } = useParams<{ learnerId: string }>();
   const [detail, setDetail] = useState<Detail | null>(null);
 
   useEffect(() => {
+    if (auth.loading || auth.user?.role !== "educator") return;
     api<Detail>(`/api/educator/learners/${learnerId}`).then(setDetail);
-  }, [learnerId]);
+  }, [auth.loading, auth.user, learnerId]);
 
+  if (auth.loading || !auth.user || auth.user.role !== "educator") return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Checking educator access...</div>;
   if (!detail) return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Loading learner evidence...</div>;
   const concepts = Object.values(detail.profile.concept_mastery);
 

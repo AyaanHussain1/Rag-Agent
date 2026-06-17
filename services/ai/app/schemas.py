@@ -3,6 +3,30 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class RegisterRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=8, max_length=128)
+    role: str = "learner"
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+
+
+class CurrentUserResponse(BaseModel):
+    id: str
+    email: str
+    name: str
+    role: str
+    learner_id: str | None = None
+
+
 class LearnerCreate(BaseModel):
     display_name: str = Field(min_length=2, max_length=120)
     current_level: str = "BEGINNER"

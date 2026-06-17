@@ -2,10 +2,10 @@ import json
 from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
-from . import adaptive, models
+from . import adaptive, auth, models
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -41,6 +41,7 @@ def seed_demo(db: Session) -> dict:
     db.execute(delete(models.AIUsageLog).where(models.AIUsageLog.learner_id.in_(learner_ids)))
     db.execute(delete(models.AIUsageLog).where(models.AIUsageLog.endpoint.like("/seed/%")))
     db.execute(delete(models.AIUsageLog).where(models.AIUsageLog.prompt_summary == "Seeded out-of-scope demo: Explain photosynthesis"))
+    db.execute(update(models.User).where(models.User.learner_id.in_(learner_ids)).values(learner_id=None))
     for learner_id in learner_ids:
         learner = db.get(models.Learner, learner_id)
         if learner:
@@ -119,6 +120,7 @@ def seed_demo(db: Session) -> dict:
     ))
     for learner_id in learner_ids:
         adaptive.refresh_alerts_for_learner(db, learner_id)
+    seed_demo_users(db)
     db.commit()
     return {
         "seeded": True,
@@ -126,6 +128,7 @@ def seed_demo(db: Session) -> dict:
         "questions": db.scalar(select(func.count()).select_from(models.Question)),
         "interactions": len(interaction_rows),
         "adaptation_rules": db.scalar(select(func.count()).select_from(models.AdaptationRule)),
+        "demo_users": ["beginner@learnshift.ai", "advanced@learnshift.ai", "educator@learnshift.ai"],
     }
 
 
@@ -136,6 +139,38 @@ def ensure_seeded(db: Session) -> None:
     rule_count = db.scalar(select(func.count()).select_from(models.AdaptationRule)) or 0
     if concept_count < len(adaptive.CONCEPTS) or question_count < 36 or hint_count < 12 or rule_count < 12:
         seed_reference_data(db)
+
+
+def seed_demo_users(db: Session) -> None:
+    demo_accounts = [
+        {
+            "email": "beginner@learnshift.ai",
+            "name": "Demo Beginner",
+            "role": "learner",
+            "learner_id": "demo_beginner",
+        },
+        {
+            "email": "advanced@learnshift.ai",
+            "name": "Demo Advanced",
+            "role": "learner",
+            "learner_id": "demo_advanced",
+        },
+        {
+            "email": "educator@learnshift.ai",
+            "name": "Demo Educator",
+            "role": "educator",
+            "learner_id": None,
+        },
+    ]
+    password_hash = auth.hash_password("password123")
+    for account in demo_accounts:
+        user = db.scalar(select(models.User).where(models.User.email == account["email"]))
+        if user:
+            user.name = account["name"]
+            user.role = account["role"]
+            user.learner_id = account["learner_id"]
+            continue
+        db.add(models.User(password_hash=password_hash, **account))
 
 
 def _load_source_documents(db: Session) -> None:

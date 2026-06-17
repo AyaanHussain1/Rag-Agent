@@ -4,6 +4,7 @@ import { BookOpen, Wand2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SourceReferenceBox } from "@/components/SourceReferenceBox";
+import { useRequireAuth } from "@/components/AuthProvider";
 import { api, concepts, type LearnerProfile, type Source } from "@/lib/api";
 
 type TeachResponse = {
@@ -19,6 +20,7 @@ type TeachResponse = {
 };
 
 export default function LearnPage() {
+  const auth = useRequireAuth();
   const { learnerId } = useParams<{ learnerId: string }>();
   const [profile, setProfile] = useState<LearnerProfile | null>(null);
   const [conceptId, setConceptId] = useState("C001");
@@ -27,11 +29,12 @@ export default function LearnPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (auth.loading || !auth.user) return;
     api<LearnerProfile>(`/api/learners/${learnerId}/profile`).then((data) => {
       setProfile(data);
       setConceptId(data.recommended_concept_id || "C001");
     });
-  }, [learnerId]);
+  }, [auth.loading, auth.user, learnerId]);
 
   async function teach() {
     setLoading(true);
@@ -46,6 +49,8 @@ export default function LearnPage() {
       setLoading(false);
     }
   }
+
+  if (auth.loading || !auth.user) return <div className="mx-auto max-w-4xl px-4 py-8 text-slate-600">Checking login...</div>;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">

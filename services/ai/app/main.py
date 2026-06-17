@@ -1,9 +1,10 @@
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import adaptive, models, schemas, seed
+from . import adaptive, auth, models, schemas, seed
+from .auth import get_current_user, require_role
 from .database import Base, engine, get_db
 from .rag_service import OUT_OF_SCOPE_MESSAGE, rag_service
 
@@ -35,7 +36,7 @@ def health() -> dict:
 
 
 @app.get("/api/diag/gemini")
-def diag_gemini() -> dict:
+def diag_gemini(_: models.User = Depends(require_role("educator"))) -> dict:
     return rag_service.diagnose()
 
 
@@ -44,8 +45,62 @@ def seed_demo(db: Session = Depends(get_db)) -> dict:
     return seed.seed_demo(db)
 
 
+@app.post("/api/auth/register", response_model=schemas.TokenResponse)
+def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)) -> dict:
+    role = payload.role.lower().strip()
+    if role not in {"learner", "educator"}:
+        raise HTTPException(status_code=400, detail="Role must be learner or educator")
+    email = payload.email.lower().strip()
+    existing = db.scalar(select(models.User).where(models.User.email == email))
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already registered")
+    learner_id = None
+    if role == "learner":
+        seed.ensure_seeded(db)
+        learner = models.Learner(display_name=payload.name, current_level="BEGINNER")
+        db.add(learner)
+        db.flush()
+        adaptive.ensure_mastery_records(db, learner)
+        learner.recommended_concept_id = "C001"
+        learner.next_recommendation = "Start with the diagnostic or review Classes and Objects."
+        learner_id = learner.learner_id
+    user = models.User(
+        email=email,
+        password_hash=auth.hash_password(payload.password),
+        name=payload.name,
+        role=role,
+        learner_id=learner_id,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"access_token": auth.create_access_token(user)}
+
+
+@app.post("/api/auth/login", response_model=schemas.TokenResponse)
+def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)) -> dict:
+    user = auth.authenticate_user(db, payload.email, payload.password)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    return {"access_token": auth.create_access_token(user)}
+
+
+@app.get("/api/auth/me", response_model=schemas.CurrentUserResponse)
+def me(current_user: models.User = Depends(get_current_user)) -> dict:
+    return user_payload(current_user)
+
+
+@app.post("/api/auth/logout")
+def logout() -> dict:
+    return {"ok": True}
+
+
 @app.post("/api/learners")
-def create_learner(payload: schemas.LearnerCreate, db: Session = Depends(get_db)) -> dict:
+def create_learner(
+    payload: schemas.LearnerCreate,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("learner", "educator")),
+) -> dict:
     seed.ensure_seeded(db)
     learner = models.Learner(display_name=payload.display_name, current_level=payload.current_level.upper())
     db.add(learner)
@@ -59,26 +114,40 @@ def create_learner(payload: schemas.LearnerCreate, db: Session = Depends(get_db)
 
 
 @app.get("/api/learners")
-def list_learners(db: Session = Depends(get_db)) -> list[dict]:
+def list_learners(
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("learner", "educator")),
+) -> list[dict]:
     seed.ensure_seeded(db)
     learners = db.scalars(select(models.Learner).order_by(models.Learner.created_at.desc())).all()
     return [learner_payload(db, learner) for learner in learners]
 
 
 @app.get("/api/learners/{learner_id}")
-def get_learner(learner_id: str, db: Session = Depends(get_db)) -> dict:
+def get_learner(
+    learner_id: str,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("learner", "educator")),
+) -> dict:
     learner = require_learner(db, learner_id)
     return learner_payload(db, learner)
 
 
 @app.get("/api/learners/{learner_id}/profile")
-def get_profile(learner_id: str, db: Session = Depends(get_db)) -> dict:
+def get_profile(
+    learner_id: str,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("learner", "educator")),
+) -> dict:
     learner = require_learner(db, learner_id)
     return adaptive.profile_payload(db, learner) | {"recent_interactions": recent_interactions(db, learner_id)}
 
 
 @app.post("/api/diagnostic/start")
-def diagnostic_start(db: Session = Depends(get_db)) -> dict:
+def diagnostic_start(
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("learner", "educator")),
+) -> dict:
     seed.ensure_seeded(db)
     question_ids = ["Q_C001_B1", "Q_C002_B1", "Q_C003_I1", "Q_C004_I1", "Q_C005_I1", "Q_C006_B1"]
     questions = db.scalars(select(models.Question).where(models.Question.question_id.in_(question_ids))).all()
@@ -87,7 +156,11 @@ def diagnostic_start(db: Session = Depends(get_db)) -> dict:
 
 
 @app.post("/api/diagnostic/submit")
-def diagnostic_submit(payload: schemas.DiagnosticSubmit, db: Session = Depends(get_db)) -> dict:
+def diagnostic_submit(
+    payload: schemas.DiagnosticSubmit,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("learner", "educator")),
+) -> dict:
     learner = require_learner(db, payload.learner_id)
     results = []
     for answer in payload.answers:
@@ -116,7 +189,11 @@ def diagnostic_submit(payload: schemas.DiagnosticSubmit, db: Session = Depends(g
 
 
 @app.post("/api/rag/answer")
-def rag_answer(payload: schemas.RAGAnswerRequest, db: Session = Depends(get_db)) -> dict:
+def rag_answer(
+    payload: schemas.RAGAnswerRequest,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("learner", "educator")),
+) -> dict:
     learner_level = "INTERMEDIATE"
     if payload.learner_id:
         learner = db.get(models.Learner, payload.learner_id)
@@ -139,7 +216,11 @@ def rag_answer(payload: schemas.RAGAnswerRequest, db: Session = Depends(get_db))
 
 
 @app.post("/api/teach")
-def teach(payload: schemas.TeachRequest, db: Session = Depends(get_db)) -> dict:
+def teach(
+    payload: schemas.TeachRequest,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("learner", "educator")),
+) -> dict:
     learner = require_learner(db, payload.learner_id)
     concept_id = payload.concept_id or adaptive.profile_payload(db, learner)["recommended_concept_id"]
     action, reason, rule_id = (payload.action, "Learner manually selected this teaching action.", "MANUAL") if payload.action else adaptive.select_teaching_action(db, learner.learner_id, concept_id)
@@ -181,7 +262,11 @@ def teach(payload: schemas.TeachRequest, db: Session = Depends(get_db)) -> dict:
 
 
 @app.post("/api/tutor/confusion")
-def tutor_confusion(payload: schemas.TutorConfusionRequest, db: Session = Depends(get_db)) -> dict:
+def tutor_confusion(
+    payload: schemas.TutorConfusionRequest,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("learner", "educator")),
+) -> dict:
     learner = require_learner(db, payload.learner_id)
     concept_id = adaptive.detect_concept_id(payload.message, learner.recommended_concept_id) or "C001"
     misconception = best_misconception(db, concept_id, payload.message)
@@ -226,7 +311,11 @@ def tutor_confusion(payload: schemas.TutorConfusionRequest, db: Session = Depend
 
 
 @app.post("/api/assessment/next")
-def assessment_next(payload: schemas.AssessmentNextRequest, db: Session = Depends(get_db)) -> dict:
+def assessment_next(
+    payload: schemas.AssessmentNextRequest,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("learner", "educator")),
+) -> dict:
     seed.ensure_seeded(db)
     learner = require_learner(db, payload.learner_id)
     question, reason, rule_id = adaptive.choose_question(db, learner, payload.concept_id)
@@ -234,7 +323,11 @@ def assessment_next(payload: schemas.AssessmentNextRequest, db: Session = Depend
 
 
 @app.post("/api/assessment/submit")
-def assessment_submit(payload: schemas.AssessmentSubmitRequest, db: Session = Depends(get_db)) -> dict:
+def assessment_submit(
+    payload: schemas.AssessmentSubmitRequest,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("learner", "educator")),
+) -> dict:
     learner = require_learner(db, payload.learner_id)
     question = require_question(db, payload.question_id)
     if adaptive.safeguard_direct_answer_request(payload.learner_answer):
@@ -297,7 +390,11 @@ def assessment_submit(payload: schemas.AssessmentSubmitRequest, db: Session = De
 
 
 @app.post("/api/hints/next")
-def hints_next(payload: schemas.HintNextRequest, db: Session = Depends(get_db)) -> dict:
+def hints_next(
+    payload: schemas.HintNextRequest,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("learner", "educator")),
+) -> dict:
     seed.ensure_seeded(db)
     learner = require_learner(db, payload.learner_id)
     question = require_question(db, payload.question_id)
@@ -326,7 +423,10 @@ def hints_next(payload: schemas.HintNextRequest, db: Session = Depends(get_db)) 
 
 
 @app.get("/api/educator/overview")
-def educator_overview(db: Session = Depends(get_db)) -> dict:
+def educator_overview(
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("educator")),
+) -> dict:
     seed.ensure_seeded(db)
     overview = adaptive.educator_overview(db)
     db.commit()
@@ -334,19 +434,29 @@ def educator_overview(db: Session = Depends(get_db)) -> dict:
 
 
 @app.get("/api/educator/alerts")
-def educator_alerts(db: Session = Depends(get_db)) -> list[dict]:
+def educator_alerts(
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("educator")),
+) -> list[dict]:
     alerts = db.scalars(select(models.EducatorAlert).where(models.EducatorAlert.active == True).order_by(models.EducatorAlert.created_at.desc())).all()
     return [alert_payload(db, alert) for alert in alerts]
 
 
 @app.get("/api/educator/ai-logs")
-def educator_ai_logs(db: Session = Depends(get_db)) -> list[dict]:
+def educator_ai_logs(
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("educator")),
+) -> list[dict]:
     rows = db.scalars(select(models.AIUsageLog).order_by(models.AIUsageLog.created_at.desc()).limit(40)).all()
     return [ai_log_payload(row) for row in rows]
 
 
 @app.get("/api/educator/learners/{learner_id}")
-def educator_learner_detail(learner_id: str, db: Session = Depends(get_db)) -> dict:
+def educator_learner_detail(
+    learner_id: str,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("educator")),
+) -> dict:
     learner = require_learner(db, learner_id)
     adaptive.refresh_alerts_for_learner(db, learner_id)
     db.commit()
@@ -382,6 +492,16 @@ def learner_payload(db: Session, learner: models.Learner) -> dict:
         "recommended_concept_id": learner.recommended_concept_id,
         "overall_mastery": profile["overall_mastery"],
         "is_demo": learner.is_demo,
+    }
+
+
+def user_payload(user: models.User) -> dict:
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+        "learner_id": user.learner_id,
     }
 
 
