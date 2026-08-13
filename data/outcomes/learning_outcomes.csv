@@ -1,0 +1,7 @@
+outcome_id,concept_id,description,bloom_level
+LO_C001,C001,"Define a Java class and instantiate objects from it, identifying fields, methods, and constructors.",Understand
+LO_C002,C002,"Apply encapsulation by restricting field access with private modifiers and exposing controlled getters and setters.",Apply
+LO_C003,C003,"Use inheritance with the extends keyword to share and specialize behavior across parent and child classes.",Apply
+LO_C004,C004,"Distinguish valid method overloading by varying parameter lists within a single class.",Analyze
+LO_C005,C005,"Implement method overriding so a subclass replaces a parent method while preserving its signature.",Apply
+LO_C006,C006,"Explain how polymorphism lets one reference type invoke different runtime behavior through dynamic dispatch.",Analyze

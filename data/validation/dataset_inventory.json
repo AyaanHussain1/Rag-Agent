@@ -1,0 +1,163 @@
+{
+  "summary_percentage": 100.0,
+  "passed": 31,
+  "total": 31,
+  "failed_checks": [],
+  "checks": [
+    {
+      "check": "3 source documents or manifest entries",
+      "status": "PASS",
+      "detail": "3 source files found"
+    },
+    {
+      "check": "24 chunks minimum",
+      "status": "PASS",
+      "detail": "24 chunks"
+    },
+    {
+      "check": "At least 4 chunks per concept",
+      "status": "PASS",
+      "detail": "{'C001': 4, 'C002': 4, 'C003': 4, 'C004': 4, 'C005': 4, 'C006': 4}"
+    },
+    {
+      "check": "RAG chunks cover all six concepts",
+      "status": "PASS",
+      "detail": "['C001', 'C002', 'C003', 'C004', 'C005', 'C006']"
+    },
+    {
+      "check": "36 questions minimum",
+      "status": "PASS",
+      "detail": "36 questions"
+    },
+    {
+      "check": "At least 6 questions per concept",
+      "status": "PASS",
+      "detail": "{'C001': 6, 'C002': 6, 'C003': 6, 'C004': 6, 'C005': 6, 'C006': 6}"
+    },
+    {
+      "check": "Basic Intermediate Advanced coverage",
+      "status": "PASS",
+      "detail": "['Advanced', 'Basic', 'Intermediate']"
+    },
+    {
+      "check": "At least 4 question formats",
+      "status": "PASS",
+      "detail": "['Code completion', 'Code tracing', 'MCQ', 'Scenario explanation', 'Short answer']"
+    },
+    {
+      "check": "12 misconceptions minimum",
+      "status": "PASS",
+      "detail": "12 misconceptions"
+    },
+    {
+      "check": "At least 2 misconceptions per concept",
+      "status": "PASS",
+      "detail": "{'C001': 2, 'C002': 2, 'C003': 2, 'C004': 2, 'C005': 2, 'C006': 2}"
+    },
+    {
+      "check": "12 hint ladders minimum",
+      "status": "PASS",
+      "detail": "36 hint ladders"
+    },
+    {
+      "check": "Each hint ladder has 3 hints plus final explanation",
+      "status": "PASS",
+      "detail": "36/36 complete"
+    },
+    {
+      "check": "5 learners minimum",
+      "status": "PASS",
+      "detail": "5 learners"
+    },
+    {
+      "check": "75 interactions minimum",
+      "status": "PASS",
+      "detail": "75 interactions"
+    },
+    {
+      "check": "At least 30 percent incorrect interactions",
+      "status": "PASS",
+      "detail": "33/75 incorrect"
+    },
+    {
+      "check": "At least 20 percent interactions involve hints",
+      "status": "PASS",
+      "detail": "26/75 hinted"
+    },
+    {
+      "check": "12 adaptation rules minimum",
+      "status": "PASS",
+      "detail": "12 rules"
+    },
+    {
+      "check": "AI usage log table exists",
+      "status": "PASS",
+      "detail": "['adaptation_rules', 'ai_usage_logs', 'alembic_version', 'assessment_attempts', 'concepts', 'content_chunks', 'educator_alerts', 'hint_ladders', 'interactions', 'learner_mastery', 'learners', 'learning_outcomes', 'misconceptions', 'questions', 'source_documents', 'users']"
+    },
+    {
+      "check": "AI usage log table has records after seed/demo",
+      "status": "PASS",
+      "detail": "15 AI log rows"
+    },
+    {
+      "check": "6 educator alert types minimum",
+      "status": "PASS",
+      "detail": "['Advanced learner ready for challenge alert', 'Excessive hint usage alert', 'High confidence but incorrect alert', 'Low confidence alert', 'Low mastery alert', 'No progress after repeated attempts alert', 'Repeated incorrect attempts alert', 'Repeated misconception alert']"
+    },
+    {
+      "check": "6 concepts exist in database",
+      "status": "PASS",
+      "detail": "6 concepts"
+    },
+    {
+      "check": "5 demo learners after seeding",
+      "status": "PASS",
+      "detail": "5 demo learners"
+    },
+    {
+      "check": "Users table exists",
+      "status": "PASS",
+      "detail": "['adaptation_rules', 'ai_usage_logs', 'alembic_version', 'assessment_attempts', 'concepts', 'content_chunks', 'educator_alerts', 'hint_ladders', 'interactions', 'learner_mastery', 'learners', 'learning_outcomes', 'misconceptions', 'questions', 'source_documents', 'users']"
+    },
+    {
+      "check": "3 demo users after seeding",
+      "status": "PASS",
+      "detail": "3 users"
+    },
+    {
+      "check": "Demo users linked to learner profiles",
+      "status": "PASS",
+      "detail": "[('advanced@learnshift.ai', 'learner', 'demo_advanced'), ('beginner@learnshift.ai', 'learner', 'demo_beginner'), ('educator@learnshift.ai', 'educator', None)]"
+    },
+    {
+      "check": "75 interactions after seeding",
+      "status": "PASS",
+      "detail": "75 interactions"
+    },
+    {
+      "check": "Protected learner routes return 401 unauthenticated",
+      "status": "PASS",
+      "detail": "GET /api/learners -> 401"
+    },
+    {
+      "check": "Learner login endpoint returns JWT",
+      "status": "PASS",
+      "detail": "POST /api/auth/login -> 200"
+    },
+    {
+      "check": "Current user endpoint returns learner user",
+      "status": "PASS",
+      "detail": "{'id': 'user_8cd541d5e1a1', 'email': 'beginner@learnshift.ai', 'name': 'Demo Beginner', 'role': 'learner', 'learner_id': 'demo_beginner'}"
+    },
+    {
+      "check": "Learner token cannot access educator routes",
+      "status": "PASS",
+      "detail": "GET /api/educator/overview -> 403"
+    },
+    {
+      "check": "Educator token can access educator routes",
+      "status": "PASS",
+      "detail": "login 200, overview 200"
+    }
+  ]
+}

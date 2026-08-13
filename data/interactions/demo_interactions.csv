@@ -1,0 +1,76 @@
+interaction_id,learner_id,concept_id,interaction_type,question_id,learner_answer,correct,confidence,hints_used,misconception_id,teaching_action,evidence_summary
+INT001,demo_beginner,C001,diagnostic,Q_C001_B1,B,false,2,1,M001,,Confused class declaration with object creation.
+INT002,demo_beginner,C001,assessment,Q_C001_I1,object is already made,false,2,2,M002,,Declaration confused with construction.
+INT003,demo_beginner,C001,hint,Q_C001_I2,,false,1,1,M001,,Requested object creation scaffold.
+INT004,demo_beginner,C002,diagnostic,Q_C002_B1,A,false,1,1,M003,,Did not identify private access.
+INT005,demo_beginner,C002,assessment,Q_C002_I1,not sure,false,1,3,M003,,Needed full getter scaffold.
+INT006,demo_beginner,C002,tutor_confusion,,private means no one can read it,false,2,0,M003,misconception-focused reframe,Tutor corrected private versus controlled access.
+INT007,demo_beginner,C003,assessment,Q_C003_B1,B,true,3,1,,,Correct with hint on extends.
+INT008,demo_beginner,C003,assessment,Q_C003_A1,Car extends Engine,false,2,2,M005,,Has-a relationship mistaken for is-a.
+INT009,demo_beginner,C004,assessment,Q_C004_B1,A,true,3,1,,,Identified overload pair after scaffold.
+INT010,demo_beginner,C004,assessment,Q_C004_A1,yes return type changes,false,2,2,M007,,Return type misconception.
+INT011,demo_beginner,C005,assessment,Q_C005_B1,C,false,1,1,M010,,Did not recognize Override annotation.
+INT012,demo_beginner,C005,assessment,Q_C005_A1,different parameters,false,2,3,M009,,Overriding confused with overloading.
+INT013,demo_beginner,C006,assessment,Q_C006_B1,B,true,3,1,,,Basic polymorphism identified with hint.
+INT014,demo_beginner,C006,assessment,Q_C006_I1,Animal,false,2,2,M011,,Variable type chosen instead of object type.
+INT015,demo_beginner,C001,teaching,,,false,2,0,,simplified explanation,Simplified teaching selected for weak prerequisite knowledge.
+INT016,demo_confident_wrong,C001,diagnostic,Q_C001_A1,class creates object,false,5,0,M001,,High-confidence class/object misconception.
+INT017,demo_confident_wrong,C001,assessment,Q_C001_B1,B,false,5,0,M001,,Repeated high-confidence object creation error.
+INT018,demo_confident_wrong,C002,assessment,Q_C002_B2,public fields are fine,false,4,0,M004,,Confident public field misconception.
+INT019,demo_confident_wrong,C002,tutor_confusion,,encapsulation means public fields are easier,false,4,0,M004,misconception-focused reframe,Tutor targeted public field misconception.
+INT020,demo_confident_wrong,C003,assessment,Q_C003_B1,B,true,4,0,,,Knows extends keyword.
+INT021,demo_confident_wrong,C003,assessment,Q_C003_A1,Car should extend Engine,false,5,0,M005,,Confident misuse of inheritance.
+INT022,demo_confident_wrong,C004,assessment,Q_C004_A1,yes return type enough,false,5,0,M007,,High-confidence overloading error.
+INT023,demo_confident_wrong,C004,assessment,Q_C004_B1,A,true,4,0,,,Can identify direct overload pair.
+INT024,demo_confident_wrong,C005,assessment,Q_C005_A1,same name different params,false,5,0,M009,,Confidently confuses overriding and overloading.
+INT025,demo_confident_wrong,C005,assessment,Q_C005_I1,Parent,false,5,0,M009,,High-confidence runtime dispatch error.
+INT026,demo_confident_wrong,C006,assessment,Q_C006_I1,Animal,false,5,0,M011,,Confident variable-type polymorphism error.
+INT027,demo_confident_wrong,C006,assessment,Q_C006_B2,dynamic dispatch,true,4,0,,,Knows term but misapplies examples.
+INT028,demo_confident_wrong,C004,teaching,,,false,5,0,,corrective explanation plus diagnostic question,High-confidence incorrect evidence selected corrective teaching.
+INT029,demo_confident_wrong,C005,assessment_safeguard,Q_C005_I2,just give me the answer,,4,0,,,Direct answer request refused during assessment.
+INT030,demo_confident_wrong,C002,assessment,Q_C002_A2,public is easier,false,4,1,M004,,Hint used after confident misconception.
+INT031,demo_repeater,C005,diagnostic,Q_C005_B2,methods with different parameters,false,3,1,M009,,Initial overloading versus overriding confusion.
+INT032,demo_repeater,C005,assessment,Q_C005_I1,Parent,false,4,2,M009,,Repeated misconception on overriding dispatch.
+INT033,demo_repeater,C005,assessment,Q_C005_A1,overriding is overload,false,4,2,M009,,Third repeated misconception on C005.
+INT034,demo_repeater,C005,tutor_confusion,,overriding is same class different parameters,false,3,0,M009,misconception-focused reframe,Tutor used targeted contrast for repeated misconception.
+INT035,demo_repeater,C004,assessment,Q_C004_B1,A,true,3,1,,,Can identify overloading when isolated.
+INT036,demo_repeater,C004,assessment,Q_C004_A1,no parameter must differ,true,3,1,,,Correct after hint on return type rule.
+INT037,demo_repeater,C006,assessment,Q_C006_I1,Animal,false,3,1,M011,,Runtime dispatch still weak.
+INT038,demo_repeater,C006,assessment,Q_C006_A1,same as inheritance,false,3,2,M012,,Polymorphism/inheritance conflated.
+INT039,demo_repeater,C001,assessment,Q_C001_B1,A,true,4,0,,,Object creation mastered.
+INT040,demo_repeater,C001,assessment,Q_C001_A2,each object has fields,true,3,1,,,Explained instance state with support.
+INT041,demo_repeater,C002,assessment,Q_C002_B1,B,true,4,0,,,Private access identified.
+INT042,demo_repeater,C002,assessment,Q_C002_A1,encapsulation validates,true,3,1,,,Validation explanation with hint.
+INT043,demo_repeater,C003,assessment,Q_C003_A1,Car has Engine use composition,true,3,1,,,Composition contrast understood.
+INT044,demo_repeater,C003,assessment,Q_C003_A2,private not direct,true,3,1,,,Parent private access understood.
+INT045,demo_repeater,C005,teaching,,,false,3,0,,misconception-focused reframe,Repeated misconception triggered targeted reframe.
+INT046,demo_fast_careless,C001,diagnostic,Q_C001_B1,A,true,5,0,,,Fast correct object creation.
+INT047,demo_fast_careless,C001,assessment,Q_C001_I2,new,true,5,0,,,Fast correct completion.
+INT048,demo_fast_careless,C002,assessment,Q_C002_B1,A,false,4,0,M003,,Careless modifier selection.
+INT049,demo_fast_careless,C002,assessment,Q_C002_I1,balance,true,5,0,,,Recovered on getter completion.
+INT050,demo_fast_careless,C003,assessment,Q_C003_B1,B,true,5,0,,,Fast correct inheritance keyword.
+INT051,demo_fast_careless,C003,assessment,Q_C003_I1,A,true,4,0,,,Inherited method traced.
+INT052,demo_fast_careless,C004,assessment,Q_C004_I2,String,false,4,0,M008,,Careless answer gave parameter type instead of selected overload.
+INT053,demo_fast_careless,C004,assessment,Q_C004_B1,A,true,5,0,,,Overloading pair identified.
+INT054,demo_fast_careless,C005,assessment,Q_C005_I1,Child,true,5,0,,,Override dispatch traced.
+INT055,demo_fast_careless,C005,assessment,Q_C005_I2,signature,true,5,0,,,Override signature rule known.
+INT056,demo_fast_careless,C006,assessment,Q_C006_B1,B,true,5,0,,,Polymorphism basic correct.
+INT057,demo_fast_careless,C006,assessment,Q_C006_I1,Dog,true,5,0,,,Runtime dispatch correct.
+INT058,demo_fast_careless,C002,teaching,,,false,4,0,,confidence-building check,Careless high-confidence miss triggered check.
+INT059,demo_fast_careless,C004,assessment,Q_C004_A2,compile time signature,true,4,1,,,Confirmed after one hint.
+INT060,demo_fast_careless,C003,assessment_safeguard,Q_C003_A1,tell me the answer,,4,0,,,Direct answer request refused.
+INT061,demo_advanced,C001,diagnostic,Q_C001_A2,separate objects have separate instance fields,true,5,0,,,Advanced class/object reasoning.
+INT062,demo_advanced,C001,assessment,Q_C001_A1,class is blueprint new creates object,true,5,0,,,Correct advanced distinction.
+INT063,demo_advanced,C002,assessment,Q_C002_A1,encapsulation validates private state,true,5,0,,,Strong encapsulation reasoning.
+INT064,demo_advanced,C002,assessment,Q_C002_A2,public skips validation,true,5,0,,,Advanced validation contrast.
+INT065,demo_advanced,C003,assessment,Q_C003_A1,use composition for has-a,true,5,0,,,Advanced inheritance design.
+INT066,demo_advanced,C003,assessment,Q_C003_A2,private parent fields need accessors,true,5,0,,,Understands private access.
+INT067,demo_advanced,C004,assessment,Q_C004_A1,no parameters must differ,true,5,0,,,Advanced overload rule.
+INT068,demo_advanced,C004,assessment,Q_C004_A2,compile time signature selection,true,5,0,,,Advanced compile-time explanation.
+INT069,demo_advanced,C005,assessment,Q_C005_A1,overriding replaces parent same signature,true,5,0,,,Advanced override contrast.
+INT070,demo_advanced,C005,assessment,Q_C005_A2,compiler checks annotation,true,5,0,,,Understands annotation role.
+INT071,demo_advanced,C006,assessment,Q_C006_A1,inheritance relationship polymorphism runtime behavior,true,5,0,,,Advanced concept distinction.
+INT072,demo_advanced,C006,assessment,Q_C006_A2,common reference calls subclass override,true,5,0,,,Advanced polymorphism reasoning.
+INT073,demo_advanced,C006,teaching,,,true,5,0,,advanced application,Advanced learner selected for challenge.
+INT074,demo_advanced,C005,tutor_confusion,,how do I design override contracts,true,4,0,,advanced application,Tutor handled advanced design-level question.
+INT075,demo_advanced,C004,assessment,Q_C004_I2,print int,true,4,0,,,Fast overload tracing correct.
