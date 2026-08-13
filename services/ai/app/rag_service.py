@@ -10,7 +10,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from .adaptive import CONCEPT_KEYWORDS, CONCEPTS, detect_concept_id
 
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 BALANCED_CHUNK_CSV = REPO_ROOT / "data" / "chunks" / "oop_knowledge_chunks.csv"
 LEGACY_CHUNK_CSV = REPO_ROOT / "pure_academic_chunks_with_vectors.csv"
 SUPPORTED_CONCEPTS = {item["concept_id"]: item for item in CONCEPTS}
