@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from . import adaptive, auth, models
 
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_ROOT = REPO_ROOT / "data"
 
 
