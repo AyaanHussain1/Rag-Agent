@@ -150,7 +150,7 @@ def get_profile(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_role("learner", "educator")),
 ) -> dict:
-    learner = require_learner_for_user(db, learner_id, current_user, require_diagnostic=True)
+    learner = require_learner_for_user(db, learner_id, current_user)
     return adaptive.profile_payload(db, learner) | {"recent_interactions": recent_interactions(db, learner_id)}
 
 

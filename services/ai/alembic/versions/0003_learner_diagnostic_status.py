@@ -20,7 +20,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.add_column("learners", sa.Column("diagnostic_completed", sa.Boolean(), nullable=False, server_default=sa.false()))
     op.add_column("learners", sa.Column("diagnostic_completed_at", sa.DateTime(), nullable=True))
-    op.alter_column("learners", "diagnostic_completed", server_default=None)
+    # op.alter_column("learners", "diagnostic_completed", server_default=None)
 
 
 def downgrade() -> None:

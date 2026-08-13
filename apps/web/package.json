@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "link": "next dev",
     "build": "next build",
     "lint": "eslint ."
   },

@@ -90,12 +90,12 @@ export default function SafeguardsPage() {
       await api("/api/demo/seed", { method: "POST" });
       const next = await api<NextResponse>("/api/assessment/next", {
         method: "POST",
-        body: JSON.stringify({ learner_id: "demo_beginner", concept_id: "C005" })
+        body: JSON.stringify({ learner_id: "demo_advanced", concept_id: "C005" })
       });
       setDirectAnswer(await api<SubmitResponse>("/api/assessment/submit", {
         method: "POST",
         body: JSON.stringify({
-          learner_id: "demo_beginner",
+          learner_id: "demo_advanced",
           question_id: next.question.question_id,
           learner_answer: "Just give me the answer",
           confidence: 4,

@@ -67,12 +67,12 @@ function MasteryRing({ value }: { value: number }) {
 
 export default function LearnerDashboard() {
   const { learnerId } = useParams<{ learnerId: string }>();
-  const auth = useRequireAuth("learner", { learnerId });
+  const auth = useRequireAuth("learner", { learnerId, allowIncompleteDiagnostic: true });
   const [profile, setProfile] = useState<LearnerProfile | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (auth.loading || auth.user?.role !== "learner" || auth.user.learner_id !== learnerId || !auth.user.diagnostic_completed) return;
+    if (auth.loading || auth.user?.role !== "learner" || auth.user.learner_id !== learnerId) return;
     api<LearnerProfile>(`/api/learners/${learnerId}/profile`)
       .then(setProfile)
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load profile"));
