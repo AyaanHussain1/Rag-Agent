@@ -20,6 +20,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:3002",
         "http://127.0.0.1:3002",
+        "https://rag-agent-2-7r7h3o2ss-syed-ayaan-hussains-projects.vercel.app/",
     ],
     allow_credentials=True,
     allow_methods=["*"],
