@@ -1,0 +1,6 @@
+learner_id,display_name,current_level,is_demo,C001,C002,C003,C004,C005,C006
+demo_beginner,Demo Learner A - Beginner,BEGINNER,true,32,28,36,34,30,35
+demo_confident_wrong,Demo Learner B - Confident But Incorrect,INTERMEDIATE,true,55,48,44,38,36,42
+demo_repeater,Demo Learner C - Repeated Misconception,BEGINNER,true,46,41,39,35,28,34
+demo_fast_careless,Demo Learner D - Fast Careless,INTERMEDIATE,true,68,64,62,58,60,57
+demo_advanced,Demo Learner E - Advanced,ADVANCED,true,86,82,84,78,88,85
