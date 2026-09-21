@@ -11,12 +11,12 @@ LearnShift AI wraps the existing Python OOP RAG tutor with a FastAPI service and
 
 ## Environment
 
-Copy `.env.example` to your local environment file and set:
+Copy `.env` to your local environment file and set:
 
 ```bash
 GOOGLE_API_KEY=your_key
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-DATABASE_URL=mysql+pymysql://username:password@localhost:3306/learnshift_ai
+DATABASE_URL=postgresql+psycopg2://username:password@localhost:5432/learnshift_ai
 ```
 
 For a quick local smoke test, omitting `DATABASE_URL` uses `sqlite:///./learnshift_ai.db`.
@@ -35,7 +35,8 @@ uvicorn app.main:app --reload --port 8000
 Seed demo data:
 
 ```bash
-curl -X POST http://localhost:8000/api/demo/seed
+curl -X POST http://localhost:8000/api/demo/seed \
+  -H "Authorization: Bearer <educator-access-token>"
 ```
 
 ## Frontend
@@ -56,6 +57,10 @@ After seeding:
 - `demo_advanced`: advanced learner with challenge-ready alerts.
 
 ## Notes
+
+For production deployments, set `NEXT_PUBLIC_API_BASE_URL` to the deployed API
+URL and `CORS_ORIGINS` to a comma-separated list of deployed frontend origins.
+Do not use `*` with credentialed requests.
 
 - The existing command-line tutor remains runnable with `python Rag_Agent.py`.
 - The FastAPI app loads the provided CSVs and adds missing required concept records during seeding.

@@ -87,10 +87,13 @@ export default function SafeguardsPage() {
     setLoading("direct");
     setError("");
     try {
-      await api("/api/demo/seed", { method: "POST" });
+      const learnerId = auth.user?.role === "learner" ? auth.user.learner_id : "demo_advanced";
+      if (!learnerId) {
+        throw new Error("Complete the initial diagnostic before running the assessment safeguard check.");
+      }
       const next = await api<NextResponse>("/api/assessment/next", {
         method: "POST",
-        body: JSON.stringify({ learner_id: "demo_advanced", concept_id: "C005" })
+        body: JSON.stringify({ learner_id: learnerId, concept_id: "C005" })
       });
       setDirectAnswer(await api<SubmitResponse>("/api/assessment/submit", {
         method: "POST",

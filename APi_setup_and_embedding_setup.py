@@ -2,7 +2,8 @@ import google.genai as genai
 import pandas as pd
 import json
 
-client = genai.Client(api_key="AQ.Ab8RN6JqNwepPx0zTZUArVZiiSBY47MQV22rTiSSpr3VEFEVPw")
+import os
+client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 print("Generating embeddings via Gemini API...")
 
 df = pd.read_csv("pure_academic_chunks.csv")

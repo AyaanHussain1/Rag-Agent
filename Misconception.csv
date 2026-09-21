@@ -1,4 +1,13 @@
 misconception_id,concept_id,misconception_description,learner_response_example,recommended_intervention
 M001,C001,Confusing a class definition with an instantiated object,A class allocates memory for variables before you use the object.,Clarify that a class is just a design pattern; memory is only allocated when an instance (object) is created.
-M005,C002,Believing private attributes are truly secure and inaccessible outside Python,Private variables cannot be touched at all from outside the file.,Explain Python name mangling (_ClassName__attribute) and how it handles private boundaries.
-M009,C005,Confusing method overriding with method overloading,Overriding happens when you have two methods with different parameters in the same class.,"Remind the learner that overriding replaces a parent method in a child class, while overloading uses different signatures in the same class."
+M002,C001,Thinking every variable of a class type already contains an object,Student s; already made the Student object.,Contrast a null reference or declaration with a constructed instance.
+M003,C002,Believing private means data can never be safely exposed,If a field is private nobody can read it.,Show how getters expose controlled access while direct field mutation remains blocked.
+M004,C002,Using public fields and calling it encapsulation,The field is public so it is easier and still encapsulated.,Explain that encapsulation protects state through private fields and controlled methods.
+M005,C003,Using inheritance for any code reuse even without an is-a relationship,A Car should inherit Engine because it uses one.,Contrast is-a inheritance with has-a composition before continuing.
+M006,C003,Thinking private parent fields are directly accessible in child classes,The subclass can use the private balance field directly.,Explain inherited behavior versus direct private field access.
+M007,C004,Thinking return type alone overloads a method,int total() and double total() are overloaded.,Emphasize that Java overloading requires a different parameter list.
+M008,C004,Confusing overloaded methods with overridden methods,Two same-name methods anywhere are overriding.,Separate compile-time signature selection from subclass replacement.
+M009,C005,Confusing method overriding with method overloading,Overriding is two methods with different parameters in the same class.,Contrast overriding as replacing a parent method with overloading as same-name different parameters.
+M010,C005,Thinking @Override changes runtime behavior by itself,The annotation makes Java call the child method.,Explain that matching method signatures enable overriding; the annotation checks intent.
+M011,C006,Thinking polymorphism uses the variable type instead of the object type,Animal a = new Dog() calls Animal sound.,Use dynamic dispatch: the actual object type decides the overriding method at runtime.
+M012,C006,Thinking polymorphism and inheritance are identical,Polymorphism just means one class extends another.,Show that inheritance enables shared type relationships, while polymorphism is varied runtime behavior through a common type.

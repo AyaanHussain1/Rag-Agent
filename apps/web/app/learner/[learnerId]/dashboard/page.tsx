@@ -125,7 +125,11 @@ export default function LearnerDashboard() {
       </section>
 
       <div className="mt-6">
-        <RecommendationCard learnerId={learnerId} text={profile.next_recommendation} />
+        <RecommendationCard
+          learnerId={learnerId}
+          text={profile.next_recommendation}
+          diagnosticCompleted={profile.diagnostic_completed}
+        />
       </div>
 
       <section className="mt-6 grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">

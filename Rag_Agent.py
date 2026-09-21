@@ -34,7 +34,7 @@ for idx, raw_vector in enumerate(df[vector_col]):
 df_clean = df.iloc[valid_row_indices].reset_index(drop=True)
 stored_vectors_2d = np.array(parsed_vectors)
 
-client = genai.Client(api_key="AQ.Ab8RN6K-zevlwUWuvD_YerPyryOqg5Ld5hnZUEUtZzXYvPREnw")
+client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
 level_rules = {
     "BEGINNER": """

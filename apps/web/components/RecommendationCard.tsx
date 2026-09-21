@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-export function RecommendationCard({ learnerId, text }: { learnerId: string; text: string }) {
+export function RecommendationCard({ learnerId, text, diagnosticCompleted }: { learnerId: string; text: string; diagnosticCompleted: boolean }) {
   const recommendation = text?.trim() || "No recommendation is available yet. Complete a learning, tutor, or assessment activity to generate the next action.";
 
   return (
@@ -17,26 +17,35 @@ export function RecommendationCard({ learnerId, text }: { learnerId: string; tex
             </div>
             <p className="mt-3 text-sm leading-6 text-primary-foreground/85">{recommendation}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          {diagnosticCompleted ? (
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="secondary">
+                <Link href={`/learner/${learnerId}/learn`}>
+                  Start learning
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
+                <Link href={`/learner/${learnerId}/assessment`}>
+                  <ClipboardCheck className="h-4 w-4" />
+                  Assessment
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
+                <Link href={`/learner/${learnerId}/tutor`}>
+                  <MessagesSquare className="h-4 w-4" />
+                  Tutor
+                </Link>
+              </Button>
+            </div>
+          ) : (
             <Button asChild variant="secondary">
-              <Link href={`/learner/${learnerId}/learn`}>
-                Start learning
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
-              <Link href={`/learner/${learnerId}/assessment`}>
+              <Link href={`/learner/${learnerId}/diagnostic`}>
                 <ClipboardCheck className="h-4 w-4" />
-                Assessment
+                Complete diagnostic
               </Link>
             </Button>
-            <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
-              <Link href={`/learner/${learnerId}/tutor`}>
-                <MessagesSquare className="h-4 w-4" />
-                Tutor
-              </Link>
-            </Button>
-          </div>
+          )}
         </div>
       </CardContent>
     </Card>

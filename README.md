@@ -17,12 +17,12 @@ Observe learner evidence -> Diagnose current need -> Decide next teaching action
 
 ### Environment Variables
 
-Copy `.env.example` or set these values:
+Copy `.env` or set these values:
 
 ```bash
 GOOGLE_API_KEY=optional_key_for_live_generation
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-DATABASE_URL=mysql+pymysql://username:password@localhost:3306/learnshift_ai
+DATABASE_URL=postgresql+psycopg2://username:password@localhost:5432/learnshift_ai
 JWT_SECRET=replace-with-a-long-random-secret
 JWT_EXPIRES_MINUTES=120
 ```
@@ -33,19 +33,18 @@ Authentication is JWT-only. The API returns one access token from login/register
 
 ### MySQL Setup
 
-Create a MySQL database before running migrations:
+Create a PostgreSQL database before running migrations:
 
 ```sql
-CREATE DATABASE learnshift_ai CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'learnshift'@'localhost' IDENTIFIED BY 'replace_me';
-GRANT ALL PRIVILEGES ON learnshift_ai.* TO 'learnshift'@'localhost';
-FLUSH PRIVILEGES;
+CREATE DATABASE learnshift_ai;
+CREATE USER learnshift WITH PASSWORD 'replace_me';
+GRANT ALL PRIVILEGES ON DATABASE learnshift_ai TO learnshift;
 ```
 
 Then set:
 
 ```bash
-DATABASE_URL=mysql+pymysql://learnshift:replace_me@localhost:3306/learnshift_ai
+DATABASE_URL=postgresql+psycopg2://learnshift:replace_me@localhost:5432/learnshift_ai
 ```
 
 ### Backend Setup

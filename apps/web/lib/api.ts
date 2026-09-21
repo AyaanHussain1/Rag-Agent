@@ -1,5 +1,7 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
 const TOKEN_KEY = "learnshift_access_token";
+const REQUEST_TIMEOUT = 15000;
+const AUTH_REQUEST_TIMEOUT = 5000;
 
 export type AuthUser = {
   id: string;
@@ -90,22 +92,50 @@ export const concepts = [
   ["C006", "Polymorphism"]
 ] as const;
 
-export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+export async function api<T>(path: string, init?: RequestInit, timeoutMs = REQUEST_TIMEOUT): Promise<T> {
   const token = getStoredToken();
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init?.headers || {})
-    },
-    cache: "no-store"
-  });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(detail || `Request failed: ${res.status}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}${path}`, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(init?.headers || {})
+        },
+        cache: "no-store"
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new Error("The server took too long to respond. Please try again.");
+      }
+      throw new Error("Unable to connect to the API. Please check that the service is available.");
+    }
+    if (!res.ok) {
+      const body = await res.text();
+      let detail = `Request failed: ${res.status}`;
+      if (body) {
+        try {
+          const parsed = JSON.parse(body) as { detail?: string | Array<{ msg?: string }> };
+          if (typeof parsed.detail === "string") {
+            detail = parsed.detail;
+          } else if (Array.isArray(parsed.detail)) {
+            detail = parsed.detail.map((item) => item.msg).filter(Boolean).join(", ") || detail;
+          }
+        } catch {
+          detail = body;
+        }
+      }
+      throw new Error(detail);
+    }
+    return res.json() as Promise<T>;
+  } finally {
+    clearTimeout(timeout);
   }
-  return res.json() as Promise<T>;
 }
 
 export function getStoredToken() {
@@ -152,7 +182,7 @@ export async function logout() {
 }
 
 export async function getCurrentUser() {
-  return api<AuthUser>("/api/auth/me");
+  return api<AuthUser>("/api/auth/me", undefined, AUTH_REQUEST_TIMEOUT);
 }
 
 export const authenticatedFetch = api;

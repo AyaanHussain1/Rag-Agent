@@ -42,8 +42,8 @@ export default function RegisterPage() {
     setError("");
     setLoading(true);
     try {
-      const user = await register(name, email, password, role);
-      await refreshUser();
+      const user = await register(name.trim(), email.trim(), password, role);
+      await refreshUser(user);
       router.push(user.role === "educator" ? "/educator" : learnerHome(user));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
@@ -77,6 +77,8 @@ export default function RegisterPage() {
                 <Input
                   id="name"
                   autoComplete="name"
+                  minLength={2}
+                  required
                   value={name}
                   disabled={loading}
                   onChange={(event) => setName(event.target.value)}
@@ -91,6 +93,7 @@ export default function RegisterPage() {
                   id="email"
                   type="email"
                   autoComplete="email"
+                  required
                   value={email}
                   disabled={loading}
                   onChange={(event) => setEmail(event.target.value)}
@@ -106,6 +109,8 @@ export default function RegisterPage() {
                 id="password"
                 type="password"
                 autoComplete="new-password"
+                minLength={8}
+                required
                 value={password}
                 disabled={loading}
                 onChange={(event) => setPassword(event.target.value)}
@@ -148,7 +153,7 @@ export default function RegisterPage() {
               </div>
             </fieldset>
 
-            <Button className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
               {loading ? "Creating account..." : "Create account"}
             </Button>

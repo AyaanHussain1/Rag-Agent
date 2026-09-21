@@ -7,7 +7,7 @@ import { clearStoredToken, getCurrentUser, getStoredToken, learnerHome, logout a
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
-  refreshUser: () => Promise<AuthUser | null>;
+  refreshUser: (knownUser?: AuthUser | null) => Promise<AuthUser | null>;
   logout: () => Promise<void>;
 };
 
@@ -17,7 +17,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function refreshUser() {
+  async function refreshUser(knownUser?: AuthUser | null) {
+    if (knownUser) {
+      setUser(knownUser);
+      setLoading(false);
+      return knownUser;
+    }
     if (!getStoredToken()) {
       setUser(null);
       setLoading(false);

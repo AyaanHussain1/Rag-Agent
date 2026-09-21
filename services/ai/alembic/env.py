@@ -24,6 +24,8 @@ def get_url() -> str:
 
     if url.startswith("mysql://"):
         url = url.replace("mysql://", "mysql+pymysql://", 1)
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
     return url
 

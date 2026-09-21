@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,21 +14,28 @@ from .rag_service import OUT_OF_SCOPE_MESSAGE, rag_service
 
 app = FastAPI(title="LearnShift AI Adaptive Learning API", version="1.0.0")
 
+default_origins = {
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3002",
+    "http://127.0.0.1:3002",
+}
+configured_origins = {
+    origin.strip().rstrip("/")
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+}
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3002",
-        "http://127.0.0.1:3002",
-        "https://rag-agent-2-7itfxs3ah-syed-ayaan-hussains-projects.vercel.app",
-    ],
+    allow_origins=sorted(configured_origins or default_origins),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
+from mangum import Mangum
+handler = Mangum(app)
 @app.on_event("startup")
 def startup() -> None:
     Base.metadata.create_all(bind=engine)
@@ -44,7 +52,10 @@ def diag_gemini(_: models.User = Depends(require_role("educator"))) -> dict:
 
 
 @app.post("/api/demo/seed")
-def seed_demo(db: Session = Depends(get_db)) -> dict:
+def seed_demo(
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_role("educator")),
+) -> dict:
     return seed.seed_demo(db)
 
 
@@ -174,6 +185,20 @@ def diagnostic_submit(
     current_user: models.User = Depends(require_role("learner", "educator")),
 ) -> dict:
     learner = require_learner_for_user(db, payload.learner_id, current_user)
+    expected_question_ids = {
+        "Q_C001_B1",
+        "Q_C002_B1",
+        "Q_C003_I1",
+        "Q_C004_I1",
+        "Q_C005_I1",
+        "Q_C006_B1",
+    }
+    submitted_question_ids = [answer.question_id for answer in payload.answers]
+    if len(submitted_question_ids) != len(set(submitted_question_ids)) or set(submitted_question_ids) != expected_question_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please submit each initial diagnostic question exactly once.",
+        )
     results = []
     for answer in payload.answers:
         question = require_question(db, answer.question_id)

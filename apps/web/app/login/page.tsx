@@ -45,8 +45,8 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const user = await login(email, password);
-      await refreshUser();
+      const user = await login(email.trim(), password);
+      await refreshUser(user);
       const params = new URLSearchParams(window.location.search);
       router.push(params.get("next") || (user.role === "educator" ? "/educator" : learnerHome(user)));
     } catch (err) {
@@ -125,6 +125,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
+                required
                 value={email}
                 disabled={loading}
                 onChange={(event) => setEmail(event.target.value)}
@@ -139,13 +140,14 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 autoComplete="current-password"
+                required
                 value={password}
                 disabled={loading}
                 onChange={(event) => setPassword(event.target.value)}
               />
             </div>
 
-            <Button className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
               {loading ? "Signing in..." : "Sign in"}
             </Button>

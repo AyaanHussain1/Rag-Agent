@@ -1,4 +1,27 @@
 question_id,concept_id,hint_step_1,hint_step_2,hint_step_3
 Q001,C001,Remember that a class is a blueprint. What do we call an instance created from that blueprint?,Look closely at the syntax used to instantiate a class in Python.,Check if you forgot to use parentheses () when creating the object.
-Q002,C002,Think about access specifiers. Which keyword restricts access completely to the internal class?,Private attributes in Python start with a double underscore (__).,Verify if you are trying to access a private attribute directly from outside the class.
-Q025,C005,Recall what super() does. It allows you to call a method from the base class.,"If a child class overrides a parent method, super().describe() invokes the parent version first.",Check if your method signature matches the parent class exactly.
+Q002,C001,Think about what creates an object. Does declaring a variable create it or does new?,The new keyword tells Java to allocate memory for the object.,A class defines the type; new creates the actual object.
+Q003,C001,What is the difference between Student s; and Student s = new Student();?,The first is just a reference, the second creates an object.,A declaration without new is just a null reference.
+Q004,C002,What keyword prevents direct access to a field?,Private restricts access to the declaring class.,Private fields can only be accessed through methods of the same class.
+Q005,C002,If a field is private, how can other code read or change its value?,Use getter and setter methods.,Getters expose read access; setters validate changes before assignment.
+Q006,C002,Why is it bad to make all fields public?,Public fields allow uncontrolled mutation and break encapsulation.,Encapsulation protects object invariants through controlled access.
+Q007,C003,Which keyword declares that a class inherits from another?,extends creates the parent-child relationship.,A subclass uses extends to inherit accessible behavior from a superclass.
+Q008,C003,Can a subclass access private fields of its parent?,No, private fields are not directly accessible to subclasses.,Subclasses inherit behavior but access it through protected or public methods.
+Q009,C003,When should you use composition instead of inheritance?,Use composition when the relationship is has-a, not is-a.,Composition avoids the fragility of deep inheritance hierarchies.
+Q010,C004,What must differ between two methods with the same name to be overloaded?,The parameter list must differ in number or type.,Return type alone is not enough for method overloading.
+Q011,C004,Can you overload a method by changing only the return type?,No, Java distinguishes methods by signature not return type.,The compiler needs distinct parameter lists to resolve overloaded calls.
+Q012,C004,What determines which overloaded method is called?,The argument types at compile time determine the match.,Java resolves overloaded methods using the compile-time type of arguments.
+Q013,C005,Which annotation marks a method that overrides a parent method?,@Override tells the compiler to verify the override.,The annotation ensures the method signature matches the parent.
+Q014,C005,If Parent p = new Child(); and both have speak(), which version runs?,The Child version runs due to runtime dispatch.,Overriding means the actual object type determines which method runs.
+Q015,C005,Can you override a method by changing only the parameter list?,No, that is overloading. Overriding requires the same signature.,Overriding replaces the parent method with a compatible signature.
+Q016,C005,Why does overriding support polymorphism?,It allows a parent reference to call a subclass method at runtime.,Polymorphism depends on overriding to enable different runtime behavior.
+Q017,C006,What is the difference between method overloading and method overriding?,Overloading is compile-time same-class; overriding is runtime parent-child.,Overloading uses different parameters; overriding uses the same signature in a subclass.
+Q018,C006,If Animal a = new Dog(); and a.sound() calls Dog.sound(), what is this called?,Dynamic dispatch or runtime polymorphism.,The JVM selects the method based on the actual object type, not the reference type.
+Q019,C006,Can polymorphism exist without inheritance and overriding?,No, polymorphism requires a common type and overridden behavior.,Polymorphism is the runtime effect enabled by inheritance and overriding.
+Q020,C006,What happens when a parent reference points to a child object?,The child overrides methods called through that reference.,This is the core of runtime polymorphism in Java.
+Q021,C001,What is a constructor and what is its purpose?,A constructor initializes object state when Java creates an instance.,Constructors have the same name as the class and no return type.
+Q022,C002,What is the purpose of a getter method?,A getter exposes read access to a private field.,Getters return the value without allowing external mutation.
+Q023,C003,What is the difference between extends and implements?,extends is for class inheritance, implements is for interfaces.,A class uses extends for a parent class relationship.
+Q024,C004,Can two methods have the same name and same parameters but different return types?,No, Java does not allow overloading by return type alone.,The parameter list must differ to create a distinct overloaded method.
+Q025,C005,What is the role of super() in method overriding?,super() calls the parent method from the subclass.,super() allows a subclass to invoke the overridden parent version.
+Q026,C006,Does the variable type or the object type determine which overridden method runs?,The actual object type determines runtime behavior.,This is the fundamental mechanism behind polymorphism.

@@ -119,6 +119,10 @@ def validate_db(expected_alert_types: set[str]) -> list[dict]:
         sqlalchemy_results = validate_db_with_sqlalchemy(database_url, expected_alert_types)
         if sqlalchemy_results:
             return sqlalchemy_results
+        if database_url.startswith("postgresql"):
+            check("AI usage log table has records after seed/demo", False, "PostgreSQL connection failed; verify DATABASE_URL and run backend seed", results)
+            check("6 educator alert types minimum", False, "PostgreSQL connection failed; verify DATABASE_URL and run backend seed", results)
+            return results
     db_path = select_db_path()
     if db_path is None:
         check("AI usage log table has records after seed/demo", False, "SQLite DB not found; run backend seed first", results)
@@ -160,6 +164,9 @@ def validate_db(expected_alert_types: set[str]) -> list[dict]:
 
 
 def select_db_path() -> Path | None:
+    database_url = os.getenv("DATABASE_URL")
+    if database_url and database_url.startswith("postgresql"):
+        return None
     candidates = [path for path in DB_PATHS if path.exists()]
     if not candidates:
         return None
@@ -174,7 +181,7 @@ def select_db_path() -> Path | None:
             scored.append((count, path))
         except sqlite3.Error:
             scored.append((0, path))
-    return sorted(scored, key=lambda item: item[0], reverse=True)[0][1]
+    return sorted(scored, key=lambda item: item[0], reverse=True)[0][1] if scored else None
 
 
 def validate_db_with_sqlalchemy(database_url: str, expected_alert_types: set[str]) -> list[dict]:
