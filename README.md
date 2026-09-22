@@ -31,7 +31,7 @@ JWT_EXPIRES_MINUTES=120
 
 Authentication is JWT-only. The API returns one access token from login/register and does not issue refresh tokens.
 
-### MySQL Setup
+### Local PostgreSQL Setup
 
 Create a PostgreSQL database before running migrations:
 
@@ -46,6 +46,37 @@ Then set:
 ```bash
 DATABASE_URL=postgresql+psycopg2://learnshift:replace_me@localhost:5432/learnshift_ai
 ```
+
+`database.py` auto-converts a plain `postgresql://` URL to `postgresql+psycopg2://` and falls back to a local SQLite file (`learnshift_ai.db`) if `DATABASE_URL` is unset, so local development works with zero configuration.
+
+### Production Deployment (Vercel + Neon)
+
+The app is deployed as two independent Vercel projects sharing one GitHub repo, plus a managed PostgreSQL database on Neon.
+
+| Piece | Platform | Root Directory |
+| --- | --- | --- |
+| Backend (FastAPI, wrapped with Mangum) | Vercel | `.` (repo root — uses the root `vercel.json`) |
+| Frontend (Next.js) | Vercel | `apps/web` (uses `apps/web/vercel.json`) |
+| Database | Neon (PostgreSQL, pooled connection) | — |
+
+**Backend project settings:**
+
+- Framework Preset: Other (driven by the root `vercel.json`, which builds `services/ai/app/main.py` via `@vercel/python`)
+- Build Command / Output Directory / Install Command: leave default
+- Environment Variables: `DATABASE_URL` (Neon's **pooled** connection string), `GOOGLE_API_KEY`, `JWT_SECRET`, `JWT_EXPIRES_MINUTES`, `CORS_ORIGINS` (set to the frontend's stable Vercel domain, e.g. `https://rag-agent-frontend.vercel.app`, no trailing slash)
+
+**Frontend project settings:**
+
+- Framework Preset: Next.js (pinned explicitly via `apps/web/vercel.json` — `{ "framework": "nextjs" }` — since a legacy `vercel.json` elsewhere in a monorepo can otherwise interfere with auto-detection)
+- Root Directory: `apps/web`
+- Environment Variables: `NEXT_PUBLIC_API_BASE_URL` set to the backend's **stable production domain** (the one with the globe icon under Settings -> Domains, e.g. `https://rag-agent-eta-coral.vercel.app` — not a per-deployment hash URL, which changes on every deploy)
+
+**Wiring notes:**
+
+- Both `DATABASE_URL` and `CORS_ORIGINS`/`NEXT_PUBLIC_API_BASE_URL` must use each project's stable domain (Settings -> Domains, globe icon), never a deployment-specific hash URL.
+- `NEXT_PUBLIC_*` variables are baked in at build time, so changing one requires a redeploy of the frontend to take effect.
+- After first deploy, run `alembic upgrade head` once against the Neon `DATABASE_URL` (from a local shell) to create the schema, since Neon starts empty.
+- Seed the demo dataset against production the same way as local, pointed at the live backend URL: `curl -X POST https://<backend-domain>/api/demo/seed`.
 
 ### Backend Setup
 
